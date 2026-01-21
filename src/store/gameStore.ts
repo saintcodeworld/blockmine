@@ -147,7 +147,10 @@ export const useGameStore = create<GameState>((set, get) => ({
   register: (username: string) => {
     const keypair = Keypair.generate();
     const publicKey = keypair.publicKey.toBase58();
-    const privateKey = Buffer.from(keypair.secretKey).toString('hex');
+    // Convert Uint8Array to hex string without Buffer (browser-compatible)
+    const privateKey = Array.from(keypair.secretKey)
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('');
 
     const player: Player = {
       id: `player-${Date.now()}`,
