@@ -7,6 +7,9 @@ export interface Cube {
   type: 'stone' | 'gold' | 'diamond' | 'emerald' | 'ruby';
   health: number;
   maxHealth: number;
+  respawnAt?: number; // Timestamp when block should respawn
+  isBeingMined?: boolean;
+  miningProgress?: number;
 }
 
 export interface Player {
@@ -23,108 +26,70 @@ export interface Player {
 interface GameState {
   player: Player | null;
   cubes: Cube[];
+  destroyedCubes: Cube[]; // Track destroyed cubes for respawning
   isRegistered: boolean;
   isMining: boolean;
-  lastMineTime: number;
-  miningCooldown: number;
+  miningCubeId: string | null;
+  miningStartTime: number;
   selectedCubeId: string | null;
-  isFirstPerson: boolean;
+  
+  // Constants
+  MINING_TIME: number; // 2 seconds to break
+  RESPAWN_TIME: number; // 1 minute to respawn
+  TOKENS_PER_BLOCK: number; // 3500 tokens per block
   
   // Actions
   register: (username: string) => void;
-  mineCube: (cubeId: string) => void;
-  spawnCubes: () => void;
+  startMining: (cubeId: string) => void;
+  stopMining: () => void;
+  updateMining: () => void;
   setSelectedCube: (cubeId: string | null) => void;
   withdrawTokens: () => void;
   updatePlayerPosition: (position: [number, number, number], rotation: number) => void;
-  setFirstPerson: (value: boolean) => void;
+  checkRespawns: () => void;
 }
 
-const generateCubeType = (): Cube['type'] => {
-  const rand = Math.random();
-  if (rand < 0.5) return 'stone';
-  if (rand < 0.75) return 'gold';
-  if (rand < 0.9) return 'diamond';
-  if (rand < 0.97) return 'emerald';
-  return 'ruby';
-};
-
-const getTokenReward = (type: Cube['type']): number => {
-  switch (type) {
-    case 'stone': return 1;
-    case 'gold': return 5;
-    case 'diamond': return 15;
-    case 'emerald': return 25;
-    case 'ruby': return 50;
-  }
-};
-
-const getCubeHealth = (type: Cube['type']): number => {
-  switch (type) {
-    case 'stone': return 1;
-    case 'gold': return 2;
-    case 'diamond': return 3;
-    case 'emerald': return 4;
-    case 'ruby': return 5;
-  }
-};
-
-// Generate a larger Minecraft-style world
+// Generate initial cube world
 const generateCubes = (): Cube[] => {
   const cubes: Cube[] = [];
+  let cubeIndex = 0;
   
-  // Create a ground layer and scattered blocks
-  for (let x = -20; x <= 20; x += 2) {
-    for (let z = -20; z <= 20; z += 2) {
-      // Ground layer
-      if (Math.random() > 0.3) {
-        const type = generateCubeType();
-        const health = getCubeHealth(type);
+  // Create a flat ground layer with cubes
+  for (let x = -15; x <= 15; x += 3) {
+    for (let z = -15; z <= 15; z += 3) {
+      // Ground level cubes
+      if (Math.random() > 0.2) {
         cubes.push({
-          id: `cube-${x}-0-${z}-${Date.now()}-${Math.random()}`,
-          position: [x, -1, z],
-          type,
-          health,
-          maxHealth: health,
+          id: `cube-${cubeIndex++}`,
+          position: [x, 0, z],
+          type: 'stone',
+          health: 1,
+          maxHealth: 1,
         });
       }
       
-      // Scattered elevated blocks
-      if (Math.random() > 0.85) {
+      // Some elevated cubes
+      if (Math.random() > 0.7) {
         const height = Math.floor(Math.random() * 3) + 1;
-        for (let y = 0; y < height; y++) {
-          const type = generateCubeType();
-          const health = getCubeHealth(type);
+        for (let y = 1; y <= height; y++) {
+          const types: Cube['type'][] = ['stone', 'gold', 'diamond', 'emerald', 'ruby'];
+          const weights = [50, 25, 15, 7, 3];
+          let rand = Math.random() * 100;
+          let type: Cube['type'] = 'stone';
+          for (let i = 0; i < weights.length; i++) {
+            rand -= weights[i];
+            if (rand <= 0) {
+              type = types[i];
+              break;
+            }
+          }
+          
           cubes.push({
-            id: `cube-${x}-${y}-${z}-${Date.now()}-${Math.random()}`,
-            position: [x, y, z],
+            id: `cube-${cubeIndex++}`,
+            position: [x, y * 2, z],
             type,
-            health,
-            maxHealth: health,
-          });
-        }
-      }
-    }
-  }
-  
-  // Add some floating islands
-  for (let i = 0; i < 15; i++) {
-    const centerX = (Math.random() - 0.5) * 40;
-    const centerY = Math.random() * 8 + 4;
-    const centerZ = (Math.random() - 0.5) * 40;
-    const size = Math.floor(Math.random() * 3) + 2;
-    
-    for (let dx = -size; dx <= size; dx += 2) {
-      for (let dz = -size; dz <= size; dz += 2) {
-        if (dx * dx + dz * dz <= size * size * 2) {
-          const type = generateCubeType();
-          const health = getCubeHealth(type);
-          cubes.push({
-            id: `float-${centerX}-${centerY}-${centerZ}-${dx}-${dz}-${Math.random()}`,
-            position: [centerX + dx, centerY, centerZ + dz],
-            type,
-            health,
-            maxHealth: health,
+            health: 1,
+            maxHealth: 1,
           });
         }
       }
@@ -137,17 +102,22 @@ const generateCubes = (): Cube[] => {
 export const useGameStore = create<GameState>((set, get) => ({
   player: null,
   cubes: [],
+  destroyedCubes: [],
   isRegistered: false,
   isMining: false,
-  lastMineTime: 0,
-  miningCooldown: 3000,
+  miningCubeId: null,
+  miningStartTime: 0,
   selectedCubeId: null,
-  isFirstPerson: true,
+  
+  // Constants as per requirements
+  MINING_TIME: 2000, // 2 seconds
+  RESPAWN_TIME: 60000, // 1 minute
+  TOKENS_PER_BLOCK: 3500, // 3500 tokens per block
 
   register: (username: string) => {
     const keypair = Keypair.generate();
     const publicKey = keypair.publicKey.toBase58();
-    // Convert Uint8Array to hex string without Buffer (browser-compatible)
+    // Convert Uint8Array to hex string (browser-compatible)
     const privateKey = Array.from(keypair.secretKey)
       .map(b => b.toString(16).padStart(2, '0'))
       .join('');
@@ -159,7 +129,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       privateKey,
       tokens: 0,
       totalMined: 0,
-      position: [0, 1.5, 5],
+      position: [0, 2, 8],
       rotation: 0,
     };
 
@@ -170,63 +140,66 @@ export const useGameStore = create<GameState>((set, get) => ({
     });
   },
 
-  mineCube: (cubeId: string) => {
+  startMining: (cubeId: string) => {
     const state = get();
-    const now = Date.now();
+    if (state.isMining) return;
     
-    if (now - state.lastMineTime < state.miningCooldown) {
-      return;
-    }
+    const cube = state.cubes.find(c => c.id === cubeId);
+    if (!cube) return;
 
-    const cubeIndex = state.cubes.findIndex(c => c.id === cubeId);
-    if (cubeIndex === -1) return;
+    set({ 
+      isMining: true, 
+      miningCubeId: cubeId,
+      miningStartTime: Date.now(),
+      selectedCubeId: cubeId,
+    });
+  },
 
-    const cube = state.cubes[cubeIndex];
-    const newHealth = cube.health - 1;
+  stopMining: () => {
+    set({ 
+      isMining: false, 
+      miningCubeId: null,
+      miningStartTime: 0,
+    });
+  },
 
-    set({ isMining: true, lastMineTime: now });
+  updateMining: () => {
+    const state = get();
+    if (!state.isMining || !state.miningCubeId || !state.player) return;
 
-    setTimeout(() => {
-      set({ isMining: false });
-    }, 300);
+    const elapsed = Date.now() - state.miningStartTime;
+    
+    // Check if mining is complete (2 seconds)
+    if (elapsed >= state.MINING_TIME) {
+      const cubeIndex = state.cubes.findIndex(c => c.id === state.miningCubeId);
+      if (cubeIndex === -1) {
+        set({ isMining: false, miningCubeId: null, miningStartTime: 0 });
+        return;
+      }
 
-    if (newHealth <= 0) {
-      const reward = getTokenReward(cube.type);
-      const newCubes = state.cubes.filter(c => c.id !== cubeId);
+      const cube = state.cubes[cubeIndex];
+      const newCubes = state.cubes.filter(c => c.id !== state.miningCubeId);
       
-      // Spawn new cube in a random location
-      const type = generateCubeType();
-      const health = getCubeHealth(type);
-      const newCube: Cube = {
-        id: `cube-${Date.now()}-${Math.random()}`,
-        position: [
-          (Math.random() - 0.5) * 30,
-          Math.random() * 6,
-          (Math.random() - 0.5) * 30,
-        ],
-        type,
-        health,
-        maxHealth: health,
+      // Add to destroyed cubes for respawning
+      const destroyedCube = {
+        ...cube,
+        respawnAt: Date.now() + state.RESPAWN_TIME,
       };
 
       set({
-        cubes: [...newCubes, newCube],
-        player: state.player ? {
+        cubes: newCubes,
+        destroyedCubes: [...state.destroyedCubes, destroyedCube],
+        player: {
           ...state.player,
-          tokens: state.player.tokens + reward,
+          tokens: state.player.tokens + state.TOKENS_PER_BLOCK,
           totalMined: state.player.totalMined + 1,
-        } : null,
+        },
+        isMining: false,
+        miningCubeId: null,
+        miningStartTime: 0,
         selectedCubeId: null,
       });
-    } else {
-      const newCubes = [...state.cubes];
-      newCubes[cubeIndex] = { ...cube, health: newHealth };
-      set({ cubes: newCubes });
     }
-  },
-
-  spawnCubes: () => {
-    set({ cubes: generateCubes() });
   },
 
   setSelectedCube: (cubeId: string | null) => {
@@ -260,7 +233,24 @@ export const useGameStore = create<GameState>((set, get) => ({
     });
   },
 
-  setFirstPerson: (value: boolean) => {
-    set({ isFirstPerson: value });
+  checkRespawns: () => {
+    const state = get();
+    const now = Date.now();
+    
+    const toRespawn = state.destroyedCubes.filter(c => c.respawnAt && c.respawnAt <= now);
+    const stillDestroyed = state.destroyedCubes.filter(c => c.respawnAt && c.respawnAt > now);
+    
+    if (toRespawn.length > 0) {
+      const respawnedCubes = toRespawn.map(c => ({
+        ...c,
+        respawnAt: undefined,
+        health: c.maxHealth,
+      }));
+      
+      set({
+        cubes: [...state.cubes, ...respawnedCubes],
+        destroyedCubes: stillDestroyed,
+      });
+    }
   },
 }));

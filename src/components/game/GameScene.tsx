@@ -1,30 +1,22 @@
 import { Canvas } from '@react-three/fiber';
-import { Stars } from '@react-three/drei';
-import { Suspense, useCallback } from 'react';
+import { Stars, PointerLockControls } from '@react-three/drei';
+import { Suspense, useCallback, useRef } from 'react';
 import { useGameStore } from '@/store/gameStore';
 import { MineCube } from './MineCube';
 import { FirstPersonController } from './FirstPersonController';
 import { RemotePlayer } from './RemotePlayer';
-import { Pickaxe } from './Pickaxe';
+import { PickaxeHUD } from './PickaxeHUD';
 import { useMultiplayer } from '@/hooks/useMultiplayer';
-import { LocalPlayerModel } from './LocalPlayerModel';
 
 function Scene() {
   const cubes = useGameStore((state) => state.cubes);
   const selectedCubeId = useGameStore((state) => state.selectedCubeId);
   const setSelectedCube = useGameStore((state) => state.setSelectedCube);
-  const mineCube = useGameStore((state) => state.mineCube);
   const updatePlayerPosition = useGameStore((state) => state.updatePlayerPosition);
-  const player = useGameStore((state) => state.player);
   const { remotePlayers, updatePosition, isConnected } = useMultiplayer();
-
-  const handleMine = useCallback((cubeId: string) => {
-    mineCube(cubeId);
-  }, [mineCube]);
 
   const handlePositionChange = useCallback((position: [number, number, number], rotation: number) => {
     updatePlayerPosition(position, rotation);
-    // Sync to multiplayer
     if (isConnected) {
       updatePosition(position, rotation);
     }
@@ -32,47 +24,44 @@ function Scene() {
 
   return (
     <>
+      {/* Lighting */}
       <ambientLight intensity={0.5} />
-      <directionalLight position={[50, 50, 50]} intensity={1.2} castShadow />
-      <pointLight position={[10, 20, 10]} intensity={0.8} color="#06b6d4" />
-      <pointLight position={[-10, 15, -10]} intensity={0.5} color="#a855f7" />
+      <directionalLight position={[50, 100, 50]} intensity={1} castShadow />
+      <pointLight position={[0, 20, 0]} intensity={0.8} color="#06b6d4" />
       <hemisphereLight args={['#87CEEB', '#1a1a2e', 0.6]} />
       
-      <Stars radius={200} depth={100} count={3000} factor={4} saturation={0} fade speed={0.3} />
+      {/* Skybox */}
+      <Stars radius={300} depth={100} count={3000} factor={4} saturation={0} fade speed={0.3} />
       
-      {/* First person controller */}
+      {/* Player controller */}
       <FirstPersonController onPositionChange={handlePositionChange} />
       
-      {/* Pickaxe (attached to camera) */}
-      <Pickaxe />
+      {/* Pickaxe in first-person view */}
+      <PickaxeHUD />
       
-      {/* Local player model (visible in third person only - for debugging spawn) */}
-      {player && <LocalPlayerModel position={player.position} rotation={player.rotation} />}
-      
-      {/* Render remote players */}
-      {remotePlayers.map((rPlayer) => (
-        <RemotePlayer key={rPlayer.odocument} player={rPlayer} />
+      {/* Remote players */}
+      {remotePlayers.map((player) => (
+        <RemotePlayer key={player.odocument} player={player} />
       ))}
       
-      {/* Render cubes */}
+      {/* Mineable cubes */}
       {cubes.map((cube) => (
         <MineCube
           key={cube.id}
           cube={cube}
           isSelected={selectedCubeId === cube.id}
           onSelect={() => setSelectedCube(cube.id)}
-          onMine={() => handleMine(cube.id)}
         />
       ))}
       
-      {/* Ground plane */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -2, 0]} receiveShadow>
+      {/* Ground */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -1, 0]} receiveShadow>
         <planeGeometry args={[200, 200]} />
-        <meshStandardMaterial color="#1a1a2e" transparent opacity={0.8} />
+        <meshStandardMaterial color="#1a1a2e" />
       </mesh>
 
-      {/* Grid helper for orientation */}
-      <gridHelper args={[100, 50, '#333', '#222']} position={[0, -1.99, 0]} />
+      {/* Grid for orientation */}
+      <gridHelper args={[100, 50, '#333', '#222']} position={[0, -0.99, 0]} />
     </>
   );
 }
@@ -82,15 +71,19 @@ interface GameSceneProps {
 }
 
 export function GameScene({ onRequestPointerLock }: GameSceneProps) {
+  const controlsRef = useRef<any>(null);
+
   return (
     <Canvas 
-      camera={{ position: [0, 2, 10], fov: 75, near: 0.1, far: 1000 }} 
-      style={{ background: 'transparent' }}
-      gl={{ antialias: true, alpha: true }}
+      camera={{ position: [0, 2, 8], fov: 75, near: 0.1, far: 1000 }} 
+      style={{ background: 'linear-gradient(180deg, #0a0a1a 0%, #1a1a2e 100%)' }}
+      gl={{ antialias: true }}
       shadows
+      onClick={onRequestPointerLock}
     >
       <Suspense fallback={null}>
         <Scene />
+        <PointerLockControls ref={controlsRef} />
       </Suspense>
     </Canvas>
   );
