@@ -42,10 +42,6 @@ export default function Auth() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const supabase = getSupabase();
-    if (!supabase) {
-      toast.error('Backend not available. Please refresh.');
-      return;
-    }
     setLoading(true);
 
     try {
