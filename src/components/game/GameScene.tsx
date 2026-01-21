@@ -7,6 +7,7 @@ import { FirstPersonController } from './FirstPersonController';
 import { RemotePlayer } from './RemotePlayer';
 import { PickaxeHUD } from './PickaxeHUD';
 import { SteveModel } from './SteveModel';
+import { LocalPlayerModel } from './LocalPlayerModel';
 import { useMultiplayer } from '@/hooks/useMultiplayer';
 import { Raycaster, Vector2, Vector3 } from 'three';
 
@@ -49,25 +50,34 @@ function CrosshairMining() {
   }, [stopMining]);
 
   useFrame(() => {
-    if (!document.pointerLockElement || !player) return;
+    // Work in both pointer lock mode and fallback mode
+    if (!player) return;
 
     // Raycast from camera center (crosshair)
     raycaster.current.setFromCamera(new Vector2(0, 0), camera);
     
-    // Get all mesh objects that could be cubes
-    const meshes = scene.children.filter(child => {
-      // Find groups that contain mineable cubes
-      return child.type === 'Group' && child.children.some(c => c.type === 'Mesh');
-    });
-
-    const allMeshes: any[] = [];
-    scene.traverse((object) => {
-      if (object.type === 'Mesh' && object.parent?.type === 'Group') {
-        allMeshes.push(object);
+    // Collect all cube meshes for raycasting
+    const cubeMeshes: any[] = [];
+    scene.traverse((object: any) => {
+      // Look for meshes that are cubes (have boxGeometry and are in groups)
+      if (object.type === 'Mesh' && object.geometry?.type === 'BoxGeometry') {
+        const parent = object.parent;
+        if (parent?.type === 'Group') {
+          // Check if this is a mineable cube by checking parent position
+          const parentPos = parent.position;
+          const isCube = cubes.some(cube => 
+            Math.abs(cube.position[0] - parentPos.x) < 0.1 &&
+            Math.abs(cube.position[1] - parentPos.y) < 0.1 &&
+            Math.abs(cube.position[2] - parentPos.z) < 0.1
+          );
+          if (isCube) {
+            cubeMeshes.push(object);
+          }
+        }
       }
     });
 
-    const intersects = raycaster.current.intersectObjects(allMeshes, false);
+    const intersects = raycaster.current.intersectObjects(cubeMeshes, false);
     
     if (intersects.length > 0) {
       const hit = intersects[0];
@@ -148,6 +158,9 @@ function Scene() {
       
       {/* Pickaxe in first-person view */}
       <PickaxeHUD />
+      
+      {/* Local player's visible body */}
+      <LocalPlayerModel />
       
       {/* Remote players with Steve models */}
       {remotePlayers.map((rplayer) => (
