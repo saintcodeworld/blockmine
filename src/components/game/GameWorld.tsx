@@ -15,8 +15,9 @@ export function GameWorld() {
   const gameContainerRef = useRef<HTMLDivElement>(null);
 
   const handleRequestPointerLock = useCallback(() => {
-    if (!document.pointerLockElement) {
-      document.body.requestPointerLock();
+    // Only lock pointer on the game container, not the whole document
+    if (!document.pointerLockElement && gameContainerRef.current) {
+      gameContainerRef.current.requestPointerLock();
     }
   }, []);
 
@@ -24,14 +25,12 @@ export function GameWorld() {
     if (!document.fullscreenElement) {
       try {
         await gameContainerRef.current?.requestFullscreen();
-        setIsFullscreen(true);
       } catch (err) {
         console.error('Failed to enter fullscreen:', err);
       }
     } else {
       try {
         await document.exitFullscreen();
-        setIsFullscreen(false);
       } catch (err) {
         console.error('Failed to exit fullscreen:', err);
       }
@@ -40,7 +39,9 @@ export function GameWorld() {
 
   useEffect(() => {
     const handlePointerLockChange = () => {
-      setIsPointerLocked(!!document.pointerLockElement);
+      // Check if our game container is the locked element
+      const isLocked = document.pointerLockElement === gameContainerRef.current;
+      setIsPointerLocked(isLocked);
     };
 
     document.addEventListener('pointerlockchange', handlePointerLockChange);
@@ -53,7 +54,14 @@ export function GameWorld() {
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger fullscreen when typing in inputs
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+        return;
+      }
+      
       if (e.key === 'f' || e.key === 'F') {
+        e.preventDefault();
         toggleFullscreen();
       }
     };
@@ -66,6 +74,18 @@ export function GameWorld() {
     };
   }, [toggleFullscreen]);
 
+  // Handle escape to exit pointer lock
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isPointerLocked) {
+        document.exitPointerLock();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isPointerLocked]);
+
   if (!isRegistered) {
     return <RegisterScreen />;
   }
@@ -75,18 +95,24 @@ export function GameWorld() {
       <div className="flex h-full">
         {!isFullscreen && <GameSidebar />}
 
-        <div className="flex-1 flex flex-col p-4 gap-4">
+        <div className="flex-1 flex flex-col p-4 gap-4 min-h-0">
           <div 
             ref={gameContainerRef}
-            className={`relative rounded-2xl overflow-hidden border-2 border-primary/30 shadow-2xl transition-all duration-300 ${
-              isFullscreen ? 'fixed inset-0 z-50 rounded-none border-0' : 'flex-1'
+            className={`relative overflow-hidden border-2 border-primary/30 shadow-2xl transition-all duration-300 ${
+              isFullscreen 
+                ? 'fixed inset-0 z-50 rounded-none border-0' 
+                : 'flex-1 rounded-2xl min-h-0'
             }`}
+            style={!isFullscreen ? { height: 'calc(100% - 60px)' } : undefined}
           >
             {/* Fullscreen toggle */}
             <Button
               variant="outline"
               size="icon"
-              onClick={toggleFullscreen}
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleFullscreen();
+              }}
               className="absolute top-4 right-4 z-50 bg-background/80 backdrop-blur-sm hover:bg-primary/20"
             >
               {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
@@ -100,10 +126,23 @@ export function GameWorld() {
             
             {/* HUD */}
             <GameHUD isPointerLocked={isPointerLocked} isFullscreen={isFullscreen} />
+
+            {/* Click to play overlay */}
+            {!isPointerLocked && (
+              <div 
+                className="absolute inset-0 flex items-center justify-center bg-black/30 cursor-pointer z-10"
+                onClick={handleRequestPointerLock}
+              >
+                <div className="text-center text-white">
+                  <p className="text-lg font-semibold">Click to Play</p>
+                  <p className="text-sm text-white/70">Press ESC to release cursor</p>
+                </div>
+              </div>
+            )}
           </div>
 
           {!isFullscreen && (
-            <div className="glass-card rounded-xl p-3 flex items-center justify-between">
+            <div className="glass-card rounded-xl p-3 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <span className="w-2 h-2 rounded-full bg-neon-green animate-pulse" />
                 Connected
