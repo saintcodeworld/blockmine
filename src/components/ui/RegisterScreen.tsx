@@ -7,6 +7,7 @@ import { Pickaxe, Sparkles, Coins, Users, Shield } from 'lucide-react';
 export function RegisterScreen() {
   const [username, setUsername] = useState('');
   const register = useGameStore((state) => state.register);
+  const TOKENS_PER_BLOCK = useGameStore((state) => state.TOKENS_PER_BLOCK);
 
   const handleRegister = (e: React.FormEvent) => {
     e.preventDefault();
@@ -17,7 +18,7 @@ export function RegisterScreen() {
 
   return (
     <div className="min-h-screen void-bg flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Animated background elements */}
+      {/* Animated particles */}
       <div className="absolute inset-0 overflow-hidden">
         {[...Array(20)].map((_, i) => (
           <div
@@ -34,7 +35,7 @@ export function RegisterScreen() {
       </div>
 
       <div className="relative z-10 w-full max-w-lg">
-        {/* Logo and Title */}
+        {/* Logo */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-primary/20 to-secondary/20 neon-box mb-6 animate-pulse-glow">
             <Pickaxe className="w-10 h-10 text-primary" />
@@ -94,38 +95,22 @@ export function RegisterScreen() {
 
           <div className="mt-6 pt-6 border-t border-border/50">
             <p className="text-xs text-center text-muted-foreground leading-relaxed">
-              Upon registration, you'll receive a unique Solana wallet.
+              You'll receive a unique Solana wallet upon registration.
               <br />
-              Mine blocks to earn tokens and withdraw to Phantom anytime.
+              Mine blocks and withdraw tokens to your Phantom wallet.
             </p>
           </div>
         </form>
 
-        {/* Block types info */}
-        <div className="mt-8 glass-card rounded-xl p-4">
-          <p className="text-xs text-center text-muted-foreground mb-3">Block Rewards</p>
-          <div className="flex justify-center gap-4 flex-wrap">
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded bg-cube-stone" />
-              <span className="text-xs">+1</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded bg-cube-gold" />
-              <span className="text-xs">+5</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded bg-cube-diamond" />
-              <span className="text-xs">+15</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded bg-cube-emerald" />
-              <span className="text-xs">+25</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded bg-cube-ruby" />
-              <span className="text-xs">+50</span>
-            </div>
-          </div>
+        {/* Token info */}
+        <div className="mt-8 glass-card rounded-xl p-4 text-center">
+          <p className="text-sm text-muted-foreground mb-2">Earn per block mined</p>
+          <p className="font-pixel text-2xl text-accent gold-glow">
+            +{TOKENS_PER_BLOCK.toLocaleString()} tokens
+          </p>
+          <p className="text-xs text-muted-foreground mt-2">
+            Hold click for 2 seconds to break a block • Blocks respawn after 1 minute
+          </p>
         </div>
       </div>
     </div>
