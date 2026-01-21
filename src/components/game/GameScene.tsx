@@ -1,11 +1,12 @@
 import { Canvas } from '@react-three/fiber';
-import { Stars, PointerLockControls } from '@react-three/drei';
+import { Stars, PointerLockControls, Html } from '@react-three/drei';
 import { Suspense, useCallback, useRef } from 'react';
 import { useGameStore } from '@/store/gameStore';
 import { MineCube } from './MineCube';
 import { FirstPersonController } from './FirstPersonController';
 import { RemotePlayer } from './RemotePlayer';
 import { PickaxeHUD } from './PickaxeHUD';
+import { SteveModel } from './SteveModel';
 import { useMultiplayer } from '@/hooks/useMultiplayer';
 
 function Scene() {
@@ -56,6 +57,19 @@ function Scene() {
       {remotePlayers.map((rplayer) => (
         <RemotePlayer key={rplayer.odocument} player={rplayer} />
       ))}
+
+      {/* Demo player for testing (shows a Steve at spawn) */}
+      {remotePlayers.length === 0 && (
+        <group position={[5, 0.5, 5]}>
+          <SteveModel isMoving={false} isMining={false} />
+          {/* Label */}
+          <Html position={[0, 3, 0]} center distanceFactor={15}>
+            <div className="px-2 py-1 bg-black/80 rounded text-white text-xs font-bold border border-cyan-500">
+              Demo Player
+            </div>
+          </Html>
+        </group>
+      )}
       
       {/* Mineable cubes - pass player position for distance check */}
       {cubes.map((cube) => (
