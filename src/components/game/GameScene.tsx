@@ -1,6 +1,6 @@
-import { Canvas } from '@react-three/fiber';
+import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import { Stars, Html } from '@react-three/drei';
-import { Suspense, useCallback, useRef } from 'react';
+import { Suspense, useCallback, useRef, useEffect } from 'react';
 import { useGameStore } from '@/store/gameStore';
 import { MineCube } from './MineCube';
 import { FirstPersonController } from './FirstPersonController';
@@ -8,6 +8,99 @@ import { RemotePlayer } from './RemotePlayer';
 import { PickaxeHUD } from './PickaxeHUD';
 import { SteveModel } from './SteveModel';
 import { useMultiplayer } from '@/hooks/useMultiplayer';
+import { Raycaster, Vector2, Vector3 } from 'three';
+
+const MINING_REACH = 5;
+
+// Component to handle crosshair-based mining with raycasting
+function CrosshairMining() {
+  const { camera, scene } = useThree();
+  const raycaster = useRef(new Raycaster());
+  const isMouseDown = useRef(false);
+  
+  const cubes = useGameStore((state) => state.cubes);
+  const startMining = useGameStore((state) => state.startMining);
+  const stopMining = useGameStore((state) => state.stopMining);
+  const setSelectedCube = useGameStore((state) => state.setSelectedCube);
+  const isMining = useGameStore((state) => state.isMining);
+  const player = useGameStore((state) => state.player);
+
+  useEffect(() => {
+    const handleMouseDown = (e: MouseEvent) => {
+      if (e.button === 0 && document.pointerLockElement) {
+        isMouseDown.current = true;
+      }
+    };
+
+    const handleMouseUp = (e: MouseEvent) => {
+      if (e.button === 0) {
+        isMouseDown.current = false;
+        stopMining();
+      }
+    };
+
+    window.addEventListener('mousedown', handleMouseDown);
+    window.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      window.removeEventListener('mousedown', handleMouseDown);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [stopMining]);
+
+  useFrame(() => {
+    if (!document.pointerLockElement || !player) return;
+
+    // Raycast from camera center (crosshair)
+    raycaster.current.setFromCamera(new Vector2(0, 0), camera);
+    
+    // Get all mesh objects that could be cubes
+    const meshes = scene.children.filter(child => {
+      // Find groups that contain mineable cubes
+      return child.type === 'Group' && child.children.some(c => c.type === 'Mesh');
+    });
+
+    const allMeshes: any[] = [];
+    scene.traverse((object) => {
+      if (object.type === 'Mesh' && object.parent?.type === 'Group') {
+        allMeshes.push(object);
+      }
+    });
+
+    const intersects = raycaster.current.intersectObjects(allMeshes, false);
+    
+    if (intersects.length > 0) {
+      const hit = intersects[0];
+      const distance = hit.distance;
+      
+      if (distance <= MINING_REACH) {
+        // Find which cube this mesh belongs to
+        const hitPosition = hit.object.parent?.position;
+        if (hitPosition) {
+          const matchingCube = cubes.find(cube => 
+            Math.abs(cube.position[0] - hitPosition.x) < 0.1 &&
+            Math.abs(cube.position[1] - hitPosition.y) < 0.1 &&
+            Math.abs(cube.position[2] - hitPosition.z) < 0.1
+          );
+          
+          if (matchingCube) {
+            setSelectedCube(matchingCube.id);
+            
+            if (isMouseDown.current && !isMining) {
+              startMining(matchingCube.id);
+            }
+          }
+        }
+      } else {
+        setSelectedCube(null);
+      }
+    } else {
+      setSelectedCube(null);
+    }
+  });
+
+  return null;
+}
 
 function Scene() {
   const cubes = useGameStore((state) => state.cubes);
@@ -49,6 +142,9 @@ function Scene() {
       
       {/* Player controller */}
       <FirstPersonController onPositionChange={handlePositionChange} />
+      
+      {/* Crosshair-based mining system */}
+      <CrosshairMining />
       
       {/* Pickaxe in first-person view */}
       <PickaxeHUD />
