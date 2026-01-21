@@ -54,9 +54,17 @@ const generateCubes = (): Cube[] => {
   const cubes: Cube[] = [];
   let cubeIndex = 0;
   
+  // Player spawn area to keep clear (around 0, 2, 8)
+  const isNearSpawn = (x: number, z: number) => {
+    return Math.abs(x) <= 3 && Math.abs(z - 8) <= 3;
+  };
+  
   // Create a flat ground layer with cubes
   for (let x = -15; x <= 15; x += 3) {
     for (let z = -15; z <= 15; z += 3) {
+      // Skip spawn area
+      if (isNearSpawn(x, z)) continue;
+      
       // Ground level cubes
       if (Math.random() > 0.2) {
         cubes.push({

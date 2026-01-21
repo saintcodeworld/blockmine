@@ -76,11 +76,10 @@ function Scene() {
         <RemotePlayer key={rplayer.odocument} player={rplayer} />
       ))}
 
-      {/* Demo player for testing (shows a Steve at spawn) */}
+      {/* Demo player for testing - placed far from spawn, NOT included in collision */}
       {remotePlayers.length === 0 && (
-        <group position={[5, 0.5, 5]}>
+        <group position={[15, 0.5, -10]}>
           <SteveModel isMoving={false} isMining={false} />
-          {/* Label */}
           <Html position={[0, 3, 0]} center distanceFactor={15}>
             <div className="px-2 py-1 bg-black/80 rounded text-white text-xs font-bold border border-cyan-500">
               Demo Player
