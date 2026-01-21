@@ -1,10 +1,12 @@
-import { useRef, useEffect, useMemo } from 'react';
+import { useRef, useEffect } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Vector3, Box3 } from 'three';
 import { useGameStore } from '@/store/gameStore';
+import { RemotePlayer } from '@/hooks/useMultiplayer';
 
 interface FirstPersonControllerProps {
   onPositionChange: (position: [number, number, number], rotation: number) => void;
+  remotePlayers?: RemotePlayer[];
 }
 
 const MOVE_SPEED = 0.12;
@@ -22,15 +24,21 @@ const PLAYER_HEIGHT = 1.8;
 // Cube size for collision
 const CUBE_SIZE = 1.8;
 
-export function FirstPersonController({ onPositionChange }: FirstPersonControllerProps) {
-  const { camera, gl } = useThree();
+// Remote player collision radius
+const PLAYER_COLLISION_RADIUS = 0.6;
+
+export function FirstPersonController({ onPositionChange, remotePlayers = [] }: FirstPersonControllerProps) {
+  const { camera } = useThree();
   const updateMining = useGameStore((state) => state.updateMining);
   const checkRespawns = useGameStore((state) => state.checkRespawns);
   const cubes = useGameStore((state) => state.cubes);
   
-  // Store cubes in a ref to avoid stale closure issues
+  // Store cubes and remote players in refs to avoid stale closure issues
   const cubesRef = useRef(cubes);
   cubesRef.current = cubes;
+  
+  const remotePlayersRef = useRef(remotePlayers);
+  remotePlayersRef.current = remotePlayers;
   
   const position = useRef(new Vector3(0, GROUND_LEVEL, 8));
   const rotation = useRef({ x: 0, y: 0 });
@@ -49,9 +57,43 @@ export function FirstPersonController({ onPositionChange }: FirstPersonControlle
   
   const mouseMovement = useRef({ x: 0, y: 0 });
 
+  // Check collision with remote players
+  const checkPlayerCollision = (newPos: Vector3): boolean => {
+    const players = remotePlayersRef.current;
+    if (!players || players.length === 0) return false;
+
+    for (const player of players) {
+      const playerPos = new Vector3(...player.position);
+      // Check horizontal distance only (ignore Y for simpler collision)
+      const dx = newPos.x - playerPos.x;
+      const dz = newPos.z - playerPos.z;
+      const horizontalDistance = Math.sqrt(dx * dx + dz * dz);
+      
+      // Check if within collision radius
+      if (horizontalDistance < PLAYER_WIDTH + PLAYER_COLLISION_RADIUS) {
+        // Also check vertical overlap
+        const myBottom = newPos.y - PLAYER_HEIGHT;
+        const myTop = newPos.y + 0.1;
+        const theirBottom = playerPos.y - 0.5;
+        const theirTop = playerPos.y + PLAYER_HEIGHT - 0.5;
+        
+        if (myBottom < theirTop && myTop > theirBottom) {
+          return true; // Collision detected
+        }
+      }
+    }
+    return false;
+  };
+
   // Check collision with cubes
   const checkCollision = (newPos: Vector3, currentVerticalVel: number): { canMove: boolean; groundY: number | null } => {
     const currentCubes = cubesRef.current;
+    
+    // First check player collision
+    if (checkPlayerCollision(newPos)) {
+      return { canMove: false, groundY: null };
+    }
+    
     if (!currentCubes || currentCubes.length === 0) {
       return { canMove: true, groundY: null };
     }
