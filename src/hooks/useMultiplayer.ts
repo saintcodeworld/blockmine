@@ -35,10 +35,11 @@ export function useMultiplayer() {
 
     const initMultiplayer = async () => {
       try {
-        const { supabase } = await import('@/integrations/supabase/client');
+        const { getSupabase } = await import('@/lib/supabase');
+        const supabase = getSupabase();
         
         if (!supabase) {
-          console.log('Supabase not available, running in single-player mode');
+          console.log('Backend not available, running in single-player mode');
           return;
         }
 
