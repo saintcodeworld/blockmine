@@ -1,5 +1,5 @@
 import { Canvas } from '@react-three/fiber';
-import { Stars, PointerLockControls, Html } from '@react-three/drei';
+import { Stars, Html } from '@react-three/drei';
 import { Suspense, useCallback, useRef } from 'react';
 import { useGameStore } from '@/store/gameStore';
 import { MineCube } from './MineCube';
@@ -90,9 +90,6 @@ function Scene() {
 
       {/* Grid for orientation */}
       <gridHelper args={[100, 50, '#2a2a3a', '#1a1a2a']} position={[0, -0.99, 0]} />
-      
-      {/* Pointer lock controls */}
-      <PointerLockControls />
     </>
   );
 }
@@ -105,10 +102,9 @@ export function GameScene({ onRequestPointerLock }: GameSceneProps) {
   return (
     <Canvas 
       camera={{ position: [0, 2, 8], fov: 75, near: 0.1, far: 500 }} 
-      style={{ background: 'linear-gradient(180deg, #0a0a1a 0%, #1a1a2e 100%)' }}
+      style={{ background: 'linear-gradient(180deg, #0a0a1a 0%, #1a1a2e 100%)', pointerEvents: 'none' }}
       gl={{ antialias: true, alpha: false }}
       shadows
-      onClick={onRequestPointerLock}
     >
       <Suspense fallback={null}>
         <Scene />
