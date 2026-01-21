@@ -1,26 +1,19 @@
 import { useRef, useState, useMemo } from 'react';
-import { useFrame, useThree } from '@react-three/fiber';
+import { useFrame } from '@react-three/fiber';
 import { Mesh, Color, Vector3 } from 'three';
 import { useGameStore } from '@/store/gameStore';
+import { useMinecraftTextures, CubeType } from './MinecraftTextures';
 
 interface MineCubeProps {
   cube: {
     id: string;
     position: [number, number, number];
-    type: 'stone' | 'gold' | 'diamond' | 'emerald' | 'ruby';
+    type: CubeType;
   };
   isSelected: boolean;
   onSelect: () => void;
   playerPosition: [number, number, number];
 }
-
-const cubeColors: Record<string, string> = {
-  stone: '#6b7280',
-  gold: '#f59e0b',
-  diamond: '#06b6d4',
-  emerald: '#10b981',
-  ruby: '#ef4444',
-};
 
 // Maximum distance player can reach to mine a block
 const MINING_REACH = 5;
@@ -28,6 +21,7 @@ const MINING_REACH = 5;
 export function MineCube({ cube, isSelected, onSelect, playerPosition }: MineCubeProps) {
   const meshRef = useRef<Mesh>(null);
   const [hovered, setHovered] = useState(false);
+  const textures = useMinecraftTextures();
   
   const isMining = useGameStore((state) => state.isMining);
   const miningCubeId = useGameStore((state) => state.miningCubeId);
@@ -38,6 +32,9 @@ export function MineCube({ cube, isSelected, onSelect, playerPosition }: MineCub
 
   const isBeingMined = miningCubeId === cube.id;
   const miningProgress = isBeingMined ? Math.min(1, (Date.now() - miningStartTime) / MINING_TIME) : 0;
+
+  // Get the texture for this cube type
+  const texture = textures[cube.type];
 
   // Calculate distance from player to cube
   const distance = useMemo(() => {
@@ -98,14 +95,6 @@ export function MineCube({ cube, isSelected, onSelect, playerPosition }: MineCub
     }
   };
 
-  // Determine emissive intensity based on state
-  const getEmissiveIntensity = () => {
-    if (!isInRange) return 0.02; // Dim when out of range
-    if (isBeingMined) return 0.8;
-    if (hovered || isSelected) return 0.4;
-    return 0.1;
-  };
-
   return (
     <group position={cube.position}>
       <mesh
@@ -125,25 +114,23 @@ export function MineCube({ cube, isSelected, onSelect, playerPosition }: MineCub
       >
         <boxGeometry args={[1.8, 1.8, 1.8]} />
         <meshStandardMaterial
-          color={cubeColors[cube.type]}
-          emissive={new Color(cubeColors[cube.type])}
-          emissiveIntensity={getEmissiveIntensity()}
+          map={texture}
           transparent={!isInRange}
-          opacity={isInRange ? 1 : 0.6}
+          opacity={isInRange ? 1 : 0.5}
         />
       </mesh>
       
       {/* Selection outline - only show if in range */}
       {isSelected && !isBeingMined && isInRange && (
-        <mesh scale={1.05}>
+        <mesh scale={1.02}>
           <boxGeometry args={[1.8, 1.8, 1.8]} />
-          <meshBasicMaterial color="#00ffff" wireframe />
+          <meshBasicMaterial color="#ffffff" wireframe />
         </mesh>
       )}
 
       {/* Out of range indicator */}
       {isSelected && !isInRange && (
-        <mesh scale={1.05}>
+        <mesh scale={1.02}>
           <boxGeometry args={[1.8, 1.8, 1.8]} />
           <meshBasicMaterial color="#ff0000" wireframe opacity={0.5} transparent />
         </mesh>
@@ -165,11 +152,16 @@ export function MineCube({ cube, isSelected, onSelect, playerPosition }: MineCub
         </>
       )}
 
-      {/* Distance indicator when hovering out of range */}
-      {hovered && !isInRange && (
-        <mesh position={[0, 2, 0]}>
-          <boxGeometry args={[0.5, 0.2, 0.1]} />
-          <meshBasicMaterial color="#ff4444" />
+      {/* Crack overlay when being mined */}
+      {isBeingMined && miningProgress > 0.2 && (
+        <mesh scale={1.01}>
+          <boxGeometry args={[1.8, 1.8, 1.8]} />
+          <meshBasicMaterial 
+            color="#000000" 
+            wireframe 
+            opacity={miningProgress * 0.5} 
+            transparent 
+          />
         </mesh>
       )}
     </group>
