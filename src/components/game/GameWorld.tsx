@@ -101,25 +101,27 @@ export function GameWorld() {
             className={`relative overflow-hidden border-2 border-primary/30 shadow-2xl transition-all duration-300 ${
               isFullscreen 
                 ? 'fixed inset-0 z-50 rounded-none border-0' 
-                : 'flex-1 rounded-2xl min-h-0'
+                : 'flex-1 rounded-2xl'
             }`}
-            style={!isFullscreen ? { height: 'calc(100% - 60px)' } : undefined}
           >
-            {/* Fullscreen toggle */}
+            {/* Fullscreen toggle - high z-index, stops propagation */}
             <Button
               variant="outline"
               size="icon"
               onClick={(e) => {
                 e.stopPropagation();
+                e.preventDefault();
                 toggleFullscreen();
               }}
-              className="absolute top-4 right-4 z-50 bg-background/80 backdrop-blur-sm hover:bg-primary/20"
+              className="absolute top-4 right-4 z-[100] bg-background/80 backdrop-blur-sm hover:bg-primary/20 pointer-events-auto"
             >
               {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
             </Button>
 
-            {/* Game canvas */}
-            <GameScene onRequestPointerLock={handleRequestPointerLock} />
+            {/* Game canvas - no pointer events, just rendering */}
+            <div className="absolute inset-0">
+              <GameScene onRequestPointerLock={handleRequestPointerLock} />
+            </div>
             
             {/* Crosshair */}
             {isPointerLocked && <Crosshair />}
@@ -127,13 +129,16 @@ export function GameWorld() {
             {/* HUD */}
             <GameHUD isPointerLocked={isPointerLocked} isFullscreen={isFullscreen} />
 
-            {/* Click to play overlay */}
+            {/* Click to play overlay - ONLY shows when not locked AND registered */}
             {!isPointerLocked && (
               <div 
-                className="absolute inset-0 flex items-center justify-center bg-black/30 cursor-pointer z-10"
-                onClick={handleRequestPointerLock}
+                className="absolute inset-0 flex items-center justify-center bg-black/30 cursor-pointer z-20 pointer-events-auto"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleRequestPointerLock();
+                }}
               >
-                <div className="text-center text-white">
+                <div className="text-center text-white pointer-events-none">
                   <p className="text-lg font-semibold">Click to Play</p>
                   <p className="text-sm text-white/70">Press ESC to release cursor</p>
                 </div>
