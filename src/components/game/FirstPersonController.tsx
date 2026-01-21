@@ -28,6 +28,10 @@ export function FirstPersonController({ onPositionChange }: FirstPersonControlle
   const checkRespawns = useGameStore((state) => state.checkRespawns);
   const cubes = useGameStore((state) => state.cubes);
   
+  // Store cubes in a ref to avoid stale closure issues
+  const cubesRef = useRef(cubes);
+  cubesRef.current = cubes;
+  
   const position = useRef(new Vector3(0, GROUND_LEVEL, 8));
   const rotation = useRef({ x: 0, y: 0 });
   const velocity = useRef(new Vector3());
@@ -46,7 +50,12 @@ export function FirstPersonController({ onPositionChange }: FirstPersonControlle
   const mouseMovement = useRef({ x: 0, y: 0 });
 
   // Check collision with cubes
-  const checkCollision = (newPos: Vector3): { canMove: boolean; groundY: number | null } => {
+  const checkCollision = (newPos: Vector3, currentVerticalVel: number): { canMove: boolean; groundY: number | null } => {
+    const currentCubes = cubesRef.current;
+    if (!currentCubes || currentCubes.length === 0) {
+      return { canMove: true, groundY: null };
+    }
+
     const playerMin = new Vector3(
       newPos.x - PLAYER_WIDTH,
       newPos.y - PLAYER_HEIGHT,
@@ -62,7 +71,7 @@ export function FirstPersonController({ onPositionChange }: FirstPersonControlle
     let canMove = true;
     let groundY: number | null = null;
 
-    for (const cube of cubes) {
+    for (const cube of currentCubes) {
       const cubePos = new Vector3(...cube.position);
       const halfSize = CUBE_SIZE / 2;
       const cubeMin = new Vector3(
@@ -82,7 +91,7 @@ export function FirstPersonController({ onPositionChange }: FirstPersonControlle
         const playerBottom = newPos.y - PLAYER_HEIGHT;
         const cubeTop = cubePos.y + halfSize;
         
-        if (playerBottom >= cubeTop - 0.3 && verticalVelocity.current <= 0) {
+        if (playerBottom >= cubeTop - 0.5 && currentVerticalVel <= 0) {
           // Landing on cube
           const newGroundY = cubeTop + PLAYER_HEIGHT;
           if (groundY === null || newGroundY > groundY) {
@@ -202,7 +211,7 @@ export function FirstPersonController({ onPositionChange }: FirstPersonControlle
     newHorizontalPos.x += velocity.current.x;
     newHorizontalPos.z += velocity.current.z;
 
-    const horizontalCheck = checkCollision(newHorizontalPos);
+    const horizontalCheck = checkCollision(newHorizontalPos, verticalVelocity.current);
     if (horizontalCheck.canMove) {
       position.current.x = newHorizontalPos.x;
       position.current.z = newHorizontalPos.z;
@@ -210,14 +219,14 @@ export function FirstPersonController({ onPositionChange }: FirstPersonControlle
       // Try X only
       const newXPos = position.current.clone();
       newXPos.x += velocity.current.x;
-      if (checkCollision(newXPos).canMove) {
+      if (checkCollision(newXPos, verticalVelocity.current).canMove) {
         position.current.x = newXPos.x;
       }
       
       // Try Z only
       const newZPos = position.current.clone();
       newZPos.z += velocity.current.z;
-      if (checkCollision(newZPos).canMove) {
+      if (checkCollision(newZPos, verticalVelocity.current).canMove) {
         position.current.z = newZPos.z;
       }
     }
@@ -226,7 +235,7 @@ export function FirstPersonController({ onPositionChange }: FirstPersonControlle
     const newVerticalPos = position.current.clone();
     newVerticalPos.y += verticalVelocity.current;
 
-    const verticalCheck = checkCollision(newVerticalPos);
+    const verticalCheck = checkCollision(newVerticalPos, verticalVelocity.current);
     
     if (verticalCheck.groundY !== null) {
       // Land on block
