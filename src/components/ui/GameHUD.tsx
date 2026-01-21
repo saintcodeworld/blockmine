@@ -1,9 +1,8 @@
 import { useGameStore } from '@/store/gameStore';
-import { Coins, Pickaxe, Clock, Wallet, Users, Eye, EyeOff } from 'lucide-react';
+import { Coins, Pickaxe, Clock, Wallet, Users } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { WalletModal } from './WalletModal';
-import { useMultiplayer } from '@/hooks/useMultiplayer';
 
 interface GameHUDProps {
   isPointerLocked: boolean;
@@ -17,8 +16,6 @@ export function GameHUD({ isPointerLocked }: GameHUDProps) {
   const cubes = useGameStore((state) => state.cubes);
   const [cooldownProgress, setCooldownProgress] = useState(100);
   const [showWallet, setShowWallet] = useState(false);
-  
-  const { playerCount, isConnected } = useMultiplayer();
 
   const selectedCube = cubes.find(c => c.id === selectedCubeId);
 
@@ -49,7 +46,6 @@ export function GameHUD({ isPointerLocked }: GameHUDProps) {
                 <p><span className="text-foreground font-bold">WASD</span> - Move around</p>
                 <p><span className="text-foreground font-bold">Mouse</span> - Look around</p>
                 <p><span className="text-foreground font-bold">Click</span> - Select/Mine blocks</p>
-                <p><span className="text-foreground font-bold">Shift</span> - Sprint</p>
                 <p><span className="text-foreground font-bold">ESC</span> - Release cursor</p>
               </div>
             </div>
@@ -58,7 +54,7 @@ export function GameHUD({ isPointerLocked }: GameHUDProps) {
 
         {/* Top bar */}
         <div className="absolute top-0 left-0 right-0 p-4 flex justify-between items-start pointer-events-auto">
-          {/* Player info & Online count */}
+          {/* Player info */}
           <div className="flex items-center gap-3">
             <div className="glass-card rounded-xl p-3 flex items-center gap-3">
               <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center neon-box">
@@ -74,11 +70,10 @@ export function GameHUD({ isPointerLocked }: GameHUDProps) {
               </div>
             </div>
             
-            {/* Online players */}
+            {/* Online indicator */}
             <div className="glass-card rounded-xl px-4 py-3 flex items-center gap-2">
-              <Users className={`w-4 h-4 ${isConnected ? 'text-neon-green' : 'text-muted-foreground'}`} />
-              <span className="font-pixel text-sm">{playerCount}</span>
-              <span className="text-xs text-muted-foreground">online</span>
+              <Users className="w-4 h-4 text-neon-green" />
+              <span className="text-xs text-muted-foreground">Online</span>
             </div>
           </div>
 
@@ -141,16 +136,9 @@ export function GameHUD({ isPointerLocked }: GameHUDProps) {
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">
-                Look at a block and click to select, then click again to mine
+                Click a block to select, then click again to mine
               </p>
             )}
-          </div>
-        </div>
-
-        {/* Minimap placeholder */}
-        <div className="absolute bottom-8 right-4 w-32 h-32 glass-card rounded-xl overflow-hidden opacity-50">
-          <div className="w-full h-full flex items-center justify-center text-xs text-muted-foreground">
-            Minimap
           </div>
         </div>
       </div>
