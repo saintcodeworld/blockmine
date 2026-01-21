@@ -66,7 +66,8 @@ export function FirstPersonController({ onPositionChange }: FirstPersonControlle
     };
 
     const handleMouseMove = (e: MouseEvent) => {
-      if (document.pointerLockElement) {
+      // Work with pointer lock OR when mouse button is held down for fallback mode
+      if (document.pointerLockElement || e.buttons === 1) {
         mouseMovement.current.x += e.movementX;
         mouseMovement.current.y += e.movementY;
       }
