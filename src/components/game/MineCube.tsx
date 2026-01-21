@@ -111,12 +111,16 @@ export function MineCube({ cube, isSelected, onSelect, playerPosition }: MineCub
           setHovered(true); 
         }}
         onPointerOut={() => setHovered(false)}
+        castShadow
+        receiveShadow
       >
         <boxGeometry args={[1.8, 1.8, 1.8]} />
         <meshStandardMaterial
           map={texture}
           transparent={!isInRange}
           opacity={isInRange ? 1 : 0.5}
+          roughness={0.8}
+          metalness={0.1}
         />
       </mesh>
       
