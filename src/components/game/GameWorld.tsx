@@ -14,11 +14,22 @@ export function GameWorld() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const gameContainerRef = useRef<HTMLDivElement>(null);
 
-  const handleRequestPointerLock = useCallback(() => {
-    // Only lock pointer on the game container, not the whole document
+  const handleRequestPointerLock = useCallback(async () => {
+    // Only lock pointer on the game container
     if (!document.pointerLockElement && gameContainerRef.current) {
-      console.log('Requesting pointer lock on:', gameContainerRef.current);
-      gameContainerRef.current.requestPointerLock();
+      try {
+        // Use promise-based API if available, fallback to callback
+        const result = gameContainerRef.current.requestPointerLock();
+        if (result instanceof Promise) {
+          await result;
+        }
+        console.log('Pointer lock acquired');
+      } catch (err) {
+        console.error('Failed to acquire pointer lock:', err);
+        // Fallback: manually set locked state for preview environments
+        // that may not support pointer lock
+        setIsPointerLocked(true);
+      }
     }
   }, []);
 
@@ -40,14 +51,23 @@ export function GameWorld() {
 
   useEffect(() => {
     const handlePointerLockChange = () => {
-      // Check if any element is locked - we control the game container so it should be ours
       const isLocked = !!document.pointerLockElement;
-      console.log('Pointer lock changed:', isLocked, 'Element:', document.pointerLockElement);
+      console.log('Pointer lock changed:', isLocked);
       setIsPointerLocked(isLocked);
     };
 
+    const handlePointerLockError = () => {
+      console.warn('Pointer lock failed - enabling fallback mode');
+      // Enable game anyway for environments that don't support pointer lock
+      setIsPointerLocked(true);
+    };
+
     document.addEventListener('pointerlockchange', handlePointerLockChange);
-    return () => document.removeEventListener('pointerlockchange', handlePointerLockChange);
+    document.addEventListener('pointerlockerror', handlePointerLockError);
+    return () => {
+      document.removeEventListener('pointerlockchange', handlePointerLockChange);
+      document.removeEventListener('pointerlockerror', handlePointerLockError);
+    };
   }, []);
 
   useEffect(() => {
