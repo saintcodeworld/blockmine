@@ -30,21 +30,33 @@ function Scene() {
 
   return (
     <>
-      {/* Sky void with clouds */}
+      {/* Sky void with clouds and realistic environment */}
       <SkyVoid />
       
-      {/* Lighting - adjusted for outdoor Minecraft feel */}
-      <ambientLight intensity={0.6} />
+      {/* Realistic outdoor lighting */}
+      <ambientLight intensity={0.4} color="#b4d4ff" />
       <directionalLight 
-        position={[50, 100, 50]} 
-        intensity={1.5} 
+        position={[80, 120, 60]} 
+        intensity={2} 
         castShadow 
-        shadow-mapSize={[2048, 2048]}
-        color="#fffbe6"
+        shadow-mapSize={[4096, 4096]}
+        shadow-camera-far={300}
+        shadow-camera-left={-100}
+        shadow-camera-right={100}
+        shadow-camera-top={100}
+        shadow-camera-bottom={-100}
+        shadow-bias={-0.0001}
+        color="#fff5e6"
       />
-      <hemisphereLight args={['#87CEEB', '#8B7355', 0.4]} />
+      {/* Fill light from opposite direction */}
+      <directionalLight 
+        position={[-50, 40, -50]} 
+        intensity={0.3} 
+        color="#a8c4e0"
+      />
+      <hemisphereLight args={['#87CEEB', '#3d5c34', 0.5]} />
       
-      {/* First-person player controller */}
+      {/* First-person player controller with collision */}
       <FirstPersonController onPositionChange={handlePositionChange} />
       
       {/* Crosshair-based mining system */}
@@ -71,7 +83,7 @@ function Scene() {
         </group>
       )}
       
-      {/* Mineable cubes - pass player position for distance check */}
+      {/* Mineable cubes with shadows */}
       {cubes.map((cube) => (
         <MineCube
           key={cube.id}
@@ -81,15 +93,6 @@ function Scene() {
           playerPosition={playerPosition}
         />
       ))}
-      
-      {/* Ground plane - grass-like color */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -1, 0]} receiveShadow>
-        <planeGeometry args={[200, 200]} />
-        <meshStandardMaterial color="#5a8f3e" />
-      </mesh>
-
-      {/* Grid for orientation - subtle */}
-      <gridHelper args={[100, 50, '#4a7f2e', '#4a7f2e']} position={[0, -0.99, 0]} />
     </>
   );
 }
