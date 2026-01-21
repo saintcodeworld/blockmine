@@ -18,13 +18,13 @@ export function RemotePlayer({ player }: RemotePlayerProps) {
     if (!groupRef.current) return;
 
     const targetX = player.position[0];
-    const targetY = player.position[1] - 1.5; // Offset for model feet
+    const targetY = player.position[1] - 0.5; // Offset for model feet (adjusted)
     const targetZ = player.position[2];
 
     // Smooth interpolation
-    groupRef.current.position.x += (targetX - groupRef.current.position.x) * 0.12;
-    groupRef.current.position.y += (targetY - groupRef.current.position.y) * 0.12;
-    groupRef.current.position.z += (targetZ - groupRef.current.position.z) * 0.12;
+    groupRef.current.position.x += (targetX - groupRef.current.position.x) * 0.15;
+    groupRef.current.position.y += (targetY - groupRef.current.position.y) * 0.15;
+    groupRef.current.position.z += (targetZ - groupRef.current.position.z) * 0.15;
 
     // Rotation with wrapping
     const targetRotation = player.rotation + Math.PI;
@@ -45,14 +45,14 @@ export function RemotePlayer({ player }: RemotePlayerProps) {
   });
 
   return (
-    <group ref={groupRef} position={[player.position[0], player.position[1] - 1.5, player.position[2]]}>
-      {/* Steve model */}
+    <group ref={groupRef} position={[player.position[0], player.position[1] - 0.5, player.position[2]]}>
+      {/* Steve model - scaled up for visibility */}
       <SteveModel isMoving={isMoving} isMining={player.isMining} />
       
       {/* Shadow */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.01, 0]}>
-        <circleGeometry args={[0.5, 16]} />
-        <meshBasicMaterial color="black" transparent opacity={0.25} />
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.5, 0]}>
+        <circleGeometry args={[0.7, 16]} />
+        <meshBasicMaterial color="black" transparent opacity={0.3} />
       </mesh>
       
       {/* Username label */}

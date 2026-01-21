@@ -49,7 +49,7 @@ export function SteveModel({ isMoving = false, isMining = false }: SteveModelPro
   const shoeColor = "#4a4a4a"; // Dark gray shoes
 
   return (
-    <group>
+    <group scale={1.5}>
       {/* === HEAD === */}
       <group position={[0, 1.5, 0]}>
         {/* Head base - skin */}
