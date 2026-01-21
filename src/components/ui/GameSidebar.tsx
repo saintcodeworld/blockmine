@@ -1,6 +1,7 @@
 import { useGameStore } from '@/store/gameStore';
 import { useMultiplayer } from '@/hooks/useMultiplayer';
-import { Coins, Pickaxe, Users, Wallet, Trophy, Settings, LogOut } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { Coins, Pickaxe, Users, Wallet, LogOut } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { WalletModal } from './WalletModal';
@@ -10,6 +11,7 @@ export function GameSidebar() {
   const player = useGameStore((state) => state.player);
   const cubes = useGameStore((state) => state.cubes);
   const { remotePlayers, isConnected, playerCount } = useMultiplayer();
+  const { signOut } = useAuth();
   const [showWallet, setShowWallet] = useState(false);
 
   if (!player) return null;
@@ -157,6 +159,17 @@ export function GameSidebar() {
               </div>
             ))}
           </div>
+          
+          {/* Logout Button */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={signOut}
+            className="w-full mt-4 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+          >
+            <LogOut className="w-4 h-4 mr-2" />
+            Logout
+          </Button>
         </div>
       </div>
 

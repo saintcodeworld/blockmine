@@ -1,19 +1,25 @@
-import { useState } from 'react';
+import { useEffect } from 'react';
 import { useGameStore } from '@/store/gameStore';
+import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Pickaxe, Sparkles, Coins, Users, Shield } from 'lucide-react';
 
 export function RegisterScreen() {
-  const [username, setUsername] = useState('');
   const register = useGameStore((state) => state.register);
   const TOKENS_PER_BLOCK = useGameStore((state) => state.TOKENS_PER_BLOCK);
+  const { getUsername, user } = useAuth();
 
-  const handleRegister = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (username.trim().length >= 3) {
-      register(username.trim());
+  // Auto-register with authenticated username
+  useEffect(() => {
+    if (user) {
+      const username = getUsername();
+      register(username);
     }
+  }, [user, getUsername, register]);
+
+  const handleEnterGame = () => {
+    const username = getUsername();
+    register(username);
   };
 
   return (
@@ -64,43 +70,31 @@ export function RegisterScreen() {
           </div>
         </div>
 
-        {/* Registration Form */}
-        <form onSubmit={handleRegister} className="glass-card rounded-2xl p-6 md:p-8">
-          <div className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-2">
-                Choose Your Miner Name
-              </label>
-              <Input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="Enter username (min 3 characters)"
-                className="bg-muted border-border focus:border-primary focus:ring-primary text-lg h-12"
-                minLength={3}
-                maxLength={20}
-                required
-              />
-            </div>
-
-            <Button
-              type="submit"
-              disabled={username.trim().length < 3}
-              className="w-full h-12 text-lg font-bold bg-gradient-to-r from-primary via-glow-cyan to-secondary hover:opacity-90 transition-all disabled:opacity-50"
-            >
-              <Sparkles className="w-5 h-5 mr-2" />
-              Start Mining
-            </Button>
+        {/* Welcome Message */}
+        <div className="glass-card rounded-2xl p-6 md:p-8 text-center">
+          <div className="mb-6">
+            <p className="text-muted-foreground mb-2">Welcome back,</p>
+            <p className="font-pixel text-2xl text-primary neon-text">
+              {getUsername()}
+            </p>
           </div>
+
+          <Button
+            onClick={handleEnterGame}
+            className="w-full h-12 text-lg font-bold bg-gradient-to-r from-primary via-glow-cyan to-secondary hover:opacity-90 transition-all"
+          >
+            <Sparkles className="w-5 h-5 mr-2" />
+            Enter the Mine
+          </Button>
 
           <div className="mt-6 pt-6 border-t border-border/50">
             <p className="text-xs text-center text-muted-foreground leading-relaxed">
-              You'll receive a unique Solana wallet upon registration.
+              You'll receive a unique Solana wallet upon entering.
               <br />
               Mine blocks and withdraw tokens to your Phantom wallet.
             </p>
           </div>
-        </form>
+        </div>
 
         {/* Token info */}
         <div className="mt-8 glass-card rounded-xl p-4 text-center">
