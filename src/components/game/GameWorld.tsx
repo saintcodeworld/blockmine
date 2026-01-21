@@ -17,6 +17,7 @@ export function GameWorld() {
   const handleRequestPointerLock = useCallback(() => {
     // Only lock pointer on the game container, not the whole document
     if (!document.pointerLockElement && gameContainerRef.current) {
+      console.log('Requesting pointer lock on:', gameContainerRef.current);
       gameContainerRef.current.requestPointerLock();
     }
   }, []);
@@ -39,8 +40,9 @@ export function GameWorld() {
 
   useEffect(() => {
     const handlePointerLockChange = () => {
-      // Check if our game container is the locked element
-      const isLocked = document.pointerLockElement === gameContainerRef.current;
+      // Check if any element is locked - we control the game container so it should be ours
+      const isLocked = !!document.pointerLockElement;
+      console.log('Pointer lock changed:', isLocked, 'Element:', document.pointerLockElement);
       setIsPointerLocked(isLocked);
     };
 
