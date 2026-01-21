@@ -3,11 +3,9 @@ import { Stars, Html } from '@react-three/drei';
 import { Suspense, useCallback, useRef, useEffect } from 'react';
 import { useGameStore } from '@/store/gameStore';
 import { MineCube } from './MineCube';
-import { FirstPersonController } from './FirstPersonController';
+import { ThirdPersonController } from './ThirdPersonController';
 import { RemotePlayer } from './RemotePlayer';
-import { PickaxeHUD } from './PickaxeHUD';
 import { SteveModel } from './SteveModel';
-import { LocalPlayerModel } from './LocalPlayerModel';
 import { useMultiplayer } from '@/hooks/useMultiplayer';
 import { Raycaster, Vector2, Vector3 } from 'three';
 
@@ -150,17 +148,11 @@ function Scene() {
       {/* Fog for depth */}
       <fog attach="fog" args={['#0a0a1a', 30, 100]} />
       
-      {/* Player controller */}
-      <FirstPersonController onPositionChange={handlePositionChange} />
+      {/* Third-person player controller with visible model */}
+      <ThirdPersonController onPositionChange={handlePositionChange} />
       
       {/* Crosshair-based mining system */}
       <CrosshairMining />
-      
-      {/* Pickaxe in first-person view */}
-      <PickaxeHUD />
-      
-      {/* Local player's visible body */}
-      <LocalPlayerModel />
       
       {/* Remote players with Steve models */}
       {remotePlayers.map((rplayer) => (
