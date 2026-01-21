@@ -1,10 +1,15 @@
 import { useGameStore } from '@/store/gameStore';
-import { Coins, Pickaxe, Clock, Wallet } from 'lucide-react';
+import { Coins, Pickaxe, Clock, Wallet, Users, Eye, EyeOff } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { WalletModal } from './WalletModal';
+import { useMultiplayer } from '@/hooks/useMultiplayer';
 
-export function GameHUD() {
+interface GameHUDProps {
+  isPointerLocked: boolean;
+}
+
+export function GameHUD({ isPointerLocked }: GameHUDProps) {
   const player = useGameStore((state) => state.player);
   const lastMineTime = useGameStore((state) => state.lastMineTime);
   const miningCooldown = useGameStore((state) => state.miningCooldown);
@@ -12,6 +17,8 @@ export function GameHUD() {
   const cubes = useGameStore((state) => state.cubes);
   const [cooldownProgress, setCooldownProgress] = useState(100);
   const [showWallet, setShowWallet] = useState(false);
+  
+  const { playerCount, isConnected } = useMultiplayer();
 
   const selectedCube = cubes.find(c => c.id === selectedCubeId);
 
@@ -32,28 +39,54 @@ export function GameHUD() {
   return (
     <>
       <div className="absolute inset-0 pointer-events-none">
+        {/* Lock instruction */}
+        {!isPointerLocked && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/50 pointer-events-auto z-40">
+            <div className="glass-card rounded-xl p-8 text-center max-w-md">
+              <Pickaxe className="w-16 h-16 text-primary mx-auto mb-4 animate-pulse-glow" />
+              <h2 className="font-pixel text-xl text-primary neon-text mb-4">CLICK TO PLAY</h2>
+              <div className="space-y-2 text-sm text-muted-foreground">
+                <p><span className="text-foreground font-bold">WASD</span> - Move around</p>
+                <p><span className="text-foreground font-bold">Mouse</span> - Look around</p>
+                <p><span className="text-foreground font-bold">Click</span> - Select/Mine blocks</p>
+                <p><span className="text-foreground font-bold">Shift</span> - Sprint</p>
+                <p><span className="text-foreground font-bold">ESC</span> - Release cursor</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Top bar */}
         <div className="absolute top-0 left-0 right-0 p-4 flex justify-between items-start pointer-events-auto">
-          {/* Player info */}
-          <div className="glass-card rounded-xl p-4 flex items-center gap-4">
-            <div className="w-12 h-12 rounded-lg bg-primary/20 flex items-center justify-center neon-box">
-              <span className="font-pixel text-primary text-lg">
-                {player.username[0].toUpperCase()}
-              </span>
+          {/* Player info & Online count */}
+          <div className="flex items-center gap-3">
+            <div className="glass-card rounded-xl p-3 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center neon-box">
+                <span className="font-pixel text-primary text-sm">
+                  {player.username[0].toUpperCase()}
+                </span>
+              </div>
+              <div>
+                <h3 className="font-pixel text-xs text-primary neon-text">{player.username}</h3>
+                <p className="text-xs text-muted-foreground">
+                  Mined: {player.totalMined}
+                </p>
+              </div>
             </div>
-            <div>
-              <h3 className="font-pixel text-sm text-primary neon-text">{player.username}</h3>
-              <p className="text-xs text-muted-foreground mt-1">
-                Mined: {player.totalMined} blocks
-              </p>
+            
+            {/* Online players */}
+            <div className="glass-card rounded-xl px-4 py-3 flex items-center gap-2">
+              <Users className={`w-4 h-4 ${isConnected ? 'text-neon-green' : 'text-muted-foreground'}`} />
+              <span className="font-pixel text-sm">{playerCount}</span>
+              <span className="text-xs text-muted-foreground">online</span>
             </div>
           </div>
 
           {/* Token display */}
-          <div className="glass-card rounded-xl p-4 flex items-center gap-4">
+          <div className="glass-card rounded-xl p-3 flex items-center gap-4">
             <div className="flex items-center gap-2">
-              <Coins className="w-6 h-6 text-accent animate-pulse-glow" />
-              <span className="font-pixel text-2xl text-accent">{player.tokens}</span>
+              <Coins className="w-5 h-5 text-accent animate-pulse-glow" />
+              <span className="font-pixel text-xl text-accent">{player.tokens}</span>
             </div>
             <Button
               variant="outline"
@@ -71,7 +104,7 @@ export function GameHUD() {
         <div className="absolute bottom-8 left-1/2 -translate-x-1/2 pointer-events-auto">
           <div className="glass-card rounded-xl p-4 flex flex-col items-center gap-3">
             {/* Cooldown bar */}
-            <div className="flex items-center gap-3 w-64">
+            <div className="flex items-center gap-3 w-72">
               <Clock className={`w-5 h-5 ${canMine ? 'text-neon-green' : 'text-muted-foreground'}`} />
               <div className="flex-1 h-3 bg-muted rounded-full overflow-hidden">
                 <div
@@ -85,7 +118,7 @@ export function GameHUD() {
                   }}
                 />
               </div>
-              <span className="text-xs font-pixel w-12 text-right">
+              <span className="text-xs font-pixel w-14 text-right">
                 {canMine ? 'READY' : `${((miningCooldown - (Date.now() - lastMineTime)) / 1000).toFixed(1)}s`}
               </span>
             </div>
@@ -100,20 +133,26 @@ export function GameHUD() {
                 <span className="text-muted-foreground">
                   HP: {selectedCube.health}/{selectedCube.maxHealth}
                 </span>
-                <span className="text-xs text-primary font-pixel">
-                  Click to mine!
-                </span>
+                {canMine && (
+                  <span className="text-xs text-neon-green font-pixel animate-pulse">
+                    Click to mine!
+                  </span>
+                )}
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">
-                Click a cube to select it, then click again to mine
+                Look at a block and click to select, then click again to mine
               </p>
             )}
           </div>
         </div>
 
-        {/* Reward popup area */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+        {/* Minimap placeholder */}
+        <div className="absolute bottom-8 right-4 w-32 h-32 glass-card rounded-xl overflow-hidden opacity-50">
+          <div className="w-full h-full flex items-center justify-center text-xs text-muted-foreground">
+            Minimap
+          </div>
+        </div>
       </div>
 
       <WalletModal open={showWallet} onOpenChange={setShowWallet} />

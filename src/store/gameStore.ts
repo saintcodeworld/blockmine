@@ -16,6 +16,8 @@ export interface Player {
   privateKey: string;
   tokens: number;
   totalMined: number;
+  position: [number, number, number];
+  rotation: number;
 }
 
 interface GameState {
@@ -26,6 +28,7 @@ interface GameState {
   lastMineTime: number;
   miningCooldown: number;
   selectedCubeId: string | null;
+  isFirstPerson: boolean;
   
   // Actions
   register: (username: string) => void;
@@ -33,6 +36,8 @@ interface GameState {
   spawnCubes: () => void;
   setSelectedCube: (cubeId: string | null) => void;
   withdrawTokens: () => void;
+  updatePlayerPosition: (position: [number, number, number], rotation: number) => void;
+  setFirstPerson: (value: boolean) => void;
 }
 
 const generateCubeType = (): Cube['type'] => {
@@ -64,20 +69,35 @@ const getCubeHealth = (type: Cube['type']): number => {
   }
 };
 
+// Generate a larger Minecraft-style world
 const generateCubes = (): Cube[] => {
   const cubes: Cube[] = [];
-  const gridSize = 5;
-  const spacing = 3;
   
-  for (let x = -gridSize; x <= gridSize; x += 2) {
-    for (let y = -2; y <= 2; y += 2) {
-      for (let z = -gridSize; z <= gridSize; z += 2) {
-        if (Math.random() > 0.4) {
+  // Create a ground layer and scattered blocks
+  for (let x = -20; x <= 20; x += 2) {
+    for (let z = -20; z <= 20; z += 2) {
+      // Ground layer
+      if (Math.random() > 0.3) {
+        const type = generateCubeType();
+        const health = getCubeHealth(type);
+        cubes.push({
+          id: `cube-${x}-0-${z}-${Date.now()}-${Math.random()}`,
+          position: [x, -1, z],
+          type,
+          health,
+          maxHealth: health,
+        });
+      }
+      
+      // Scattered elevated blocks
+      if (Math.random() > 0.85) {
+        const height = Math.floor(Math.random() * 3) + 1;
+        for (let y = 0; y < height; y++) {
           const type = generateCubeType();
           const health = getCubeHealth(type);
           cubes.push({
             id: `cube-${x}-${y}-${z}-${Date.now()}-${Math.random()}`,
-            position: [x * spacing / 2, y * spacing / 2, z * spacing / 2 - 10],
+            position: [x, y, z],
             type,
             health,
             maxHealth: health,
@@ -86,6 +106,31 @@ const generateCubes = (): Cube[] => {
       }
     }
   }
+  
+  // Add some floating islands
+  for (let i = 0; i < 15; i++) {
+    const centerX = (Math.random() - 0.5) * 40;
+    const centerY = Math.random() * 8 + 4;
+    const centerZ = (Math.random() - 0.5) * 40;
+    const size = Math.floor(Math.random() * 3) + 2;
+    
+    for (let dx = -size; dx <= size; dx += 2) {
+      for (let dz = -size; dz <= size; dz += 2) {
+        if (dx * dx + dz * dz <= size * size * 2) {
+          const type = generateCubeType();
+          const health = getCubeHealth(type);
+          cubes.push({
+            id: `float-${centerX}-${centerY}-${centerZ}-${dx}-${dz}-${Math.random()}`,
+            position: [centerX + dx, centerY, centerZ + dz],
+            type,
+            health,
+            maxHealth: health,
+          });
+        }
+      }
+    }
+  }
+  
   return cubes;
 };
 
@@ -97,6 +142,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   lastMineTime: 0,
   miningCooldown: 3000,
   selectedCubeId: null,
+  isFirstPerson: true,
 
   register: (username: string) => {
     const keypair = Keypair.generate();
@@ -110,6 +156,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       privateKey,
       tokens: 0,
       totalMined: 0,
+      position: [0, 1.5, 5],
+      rotation: 0,
     };
 
     set({ 
@@ -140,19 +188,18 @@ export const useGameStore = create<GameState>((set, get) => ({
     }, 300);
 
     if (newHealth <= 0) {
-      // Cube destroyed - award tokens
       const reward = getTokenReward(cube.type);
       const newCubes = state.cubes.filter(c => c.id !== cubeId);
       
-      // Spawn new cube
+      // Spawn new cube in a random location
       const type = generateCubeType();
       const health = getCubeHealth(type);
       const newCube: Cube = {
         id: `cube-${Date.now()}-${Math.random()}`,
         position: [
-          (Math.random() - 0.5) * 12,
-          (Math.random() - 0.5) * 6,
-          -10 - Math.random() * 5,
+          (Math.random() - 0.5) * 30,
+          Math.random() * 6,
+          (Math.random() - 0.5) * 30,
         ],
         type,
         health,
@@ -169,7 +216,6 @@ export const useGameStore = create<GameState>((set, get) => ({
         selectedCubeId: null,
       });
     } else {
-      // Damage cube
       const newCubes = [...state.cubes];
       newCubes[cubeIndex] = { ...cube, health: newHealth };
       set({ cubes: newCubes });
@@ -188,8 +234,6 @@ export const useGameStore = create<GameState>((set, get) => ({
     const state = get();
     if (!state.player) return;
     
-    // In a real implementation, this would call a backend API
-    // to transfer tokens from treasury to user's wallet
     console.log(`Withdrawing ${state.player.tokens} tokens to ${state.player.publicKey}`);
     
     set({
@@ -198,5 +242,22 @@ export const useGameStore = create<GameState>((set, get) => ({
         tokens: 0,
       },
     });
+  },
+
+  updatePlayerPosition: (position: [number, number, number], rotation: number) => {
+    const state = get();
+    if (!state.player) return;
+    
+    set({
+      player: {
+        ...state.player,
+        position,
+        rotation,
+      },
+    });
+  },
+
+  setFirstPerson: (value: boolean) => {
+    set({ isFirstPerson: value });
   },
 }));
