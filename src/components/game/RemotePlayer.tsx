@@ -1,8 +1,9 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Group, Color } from 'three';
+import { Group, Vector3 } from 'three';
 import { Html } from '@react-three/drei';
 import { RemotePlayer as RemotePlayerType } from '@/hooks/useMultiplayer';
+import { SteveModel } from './SteveModel';
 
 interface RemotePlayerProps {
   player: RemotePlayerType;
@@ -10,91 +11,51 @@ interface RemotePlayerProps {
 
 export function RemotePlayer({ player }: RemotePlayerProps) {
   const groupRef = useRef<Group>(null);
-  const targetPosition = useRef(player.position);
-  const pickaxeRef = useRef<Group>(null);
-
-  // Update target position when it changes
-  targetPosition.current = player.position;
+  const lastPosition = useRef(new Vector3(...player.position));
+  const [isMoving, setIsMoving] = useState(false);
 
   useFrame(() => {
     if (!groupRef.current) return;
 
+    const targetX = player.position[0];
+    const targetY = player.position[1];
+    const targetZ = player.position[2];
+
     // Smooth interpolation to target position
-    groupRef.current.position.x += (targetPosition.current[0] - groupRef.current.position.x) * 0.1;
-    groupRef.current.position.y += (targetPosition.current[1] - groupRef.current.position.y) * 0.1;
-    groupRef.current.position.z += (targetPosition.current[2] - groupRef.current.position.z) * 0.1;
+    groupRef.current.position.x += (targetX - groupRef.current.position.x) * 0.15;
+    groupRef.current.position.y += (targetY - groupRef.current.position.y) * 0.15;
+    groupRef.current.position.z += (targetZ - groupRef.current.position.z) * 0.15;
 
     // Apply rotation
-    groupRef.current.rotation.y = player.rotation;
+    const targetRotation = player.rotation;
+    const currentRotation = groupRef.current.rotation.y;
+    groupRef.current.rotation.y += (targetRotation - currentRotation) * 0.15;
 
-    // Mining animation
-    if (pickaxeRef.current && player.isMining) {
-      pickaxeRef.current.rotation.z = Math.sin(Date.now() * 0.03) * 0.5;
-    }
+    // Detect movement for animation
+    const currentPos = new Vector3(
+      groupRef.current.position.x,
+      groupRef.current.position.y,
+      groupRef.current.position.z
+    );
+    const distance = currentPos.distanceTo(lastPosition.current);
+    setIsMoving(distance > 0.01);
+    lastPosition.current.copy(currentPos);
   });
 
   return (
     <group ref={groupRef} position={player.position}>
-      {/* Player body - Minecraft style */}
-      <group>
-        {/* Head */}
-        <mesh position={[0, 1.6, 0]}>
-          <boxGeometry args={[0.5, 0.5, 0.5]} />
-          <meshStandardMaterial 
-            color={player.color}
-            emissive={new Color(player.color)}
-            emissiveIntensity={0.2}
-          />
-        </mesh>
-
-        {/* Body */}
-        <mesh position={[0, 0.9, 0]}>
-          <boxGeometry args={[0.5, 0.8, 0.3]} />
-          <meshStandardMaterial color={player.color} />
-        </mesh>
-
-        {/* Left Arm */}
-        <mesh position={[-0.4, 0.9, 0]}>
-          <boxGeometry args={[0.2, 0.8, 0.2]} />
-          <meshStandardMaterial color={player.color} />
-        </mesh>
-
-        {/* Right Arm with Pickaxe */}
-        <group ref={pickaxeRef} position={[0.4, 0.9, 0]}>
-          <mesh>
-            <boxGeometry args={[0.2, 0.8, 0.2]} />
-            <meshStandardMaterial color={player.color} />
-          </mesh>
-          
-          {/* Mini Pickaxe */}
-          <group position={[0.3, -0.2, 0]} rotation={[0, 0, -0.5]} scale={0.2}>
-            <mesh position={[0, -0.4, 0]}>
-              <boxGeometry args={[0.15, 0.8, 0.15]} />
-              <meshStandardMaterial color="#8B4513" />
-            </mesh>
-            <mesh position={[0, 0.1, 0]}>
-              <boxGeometry args={[0.6, 0.2, 0.1]} />
-              <meshStandardMaterial color="#06b6d4" emissive="#0891b2" emissiveIntensity={0.5} />
-            </mesh>
-          </group>
-        </group>
-
-        {/* Left Leg */}
-        <mesh position={[-0.15, 0.3, 0]}>
-          <boxGeometry args={[0.2, 0.6, 0.2]} />
-          <meshStandardMaterial color="#1f2937" />
-        </mesh>
-
-        {/* Right Leg */}
-        <mesh position={[0.15, 0.3, 0]}>
-          <boxGeometry args={[0.2, 0.6, 0.2]} />
-          <meshStandardMaterial color="#1f2937" />
-        </mesh>
-      </group>
-
+      <SteveModel isMoving={isMoving} isMining={player.isMining} />
+      
       {/* Username label */}
-      <Html position={[0, 2.2, 0]} center distanceFactor={10}>
-        <div className="px-2 py-1 rounded bg-black/70 text-white text-xs font-pixel whitespace-nowrap">
+      <Html position={[0, 2.3, 0]} center distanceFactor={15}>
+        <div 
+          className="px-2 py-1 rounded text-white text-xs font-bold whitespace-nowrap select-none"
+          style={{ 
+            backgroundColor: 'rgba(0,0,0,0.7)',
+            textShadow: '1px 1px 2px black',
+            border: `2px solid ${player.color}`,
+          }}
+        >
           {player.username}
         </div>
       </Html>
