@@ -1,6 +1,6 @@
 import { Canvas } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
-import { Suspense, useCallback, useRef, useEffect } from 'react';
+import { Suspense, useCallback } from 'react';
 import { useGameStore } from '@/store/gameStore';
 import { MineCube } from './MineCube';
 import { FirstPersonController } from './FirstPersonController';
@@ -9,6 +9,7 @@ import { FirstPersonHand } from './FirstPersonHand';
 import { SteveModel } from './SteveModel';
 import { SkyVoid } from './SkyVoid';
 import { CrosshairMining } from './CrosshairMining';
+import { MiningParticles } from './MiningParticles';
 import { useMultiplayer } from '@/hooks/useMultiplayer';
 
 function Scene() {
@@ -68,6 +69,8 @@ function Scene() {
       {/* First-person hand with pickaxe */}
       <FirstPersonHand />
       
+      {/* Mining particle effects */}
+      <MiningParticles />
       {/* Remote players with Steve models */}
       {remotePlayers.map((rplayer) => (
         <RemotePlayer key={rplayer.odocument} player={rplayer} />
