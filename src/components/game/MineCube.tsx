@@ -42,7 +42,8 @@ export function MineCube({ cube, isSelected, onSelect, playerPosition }: MineCub
   // Calculate distance from player to cube
   const distance = useMemo(() => {
     const cubePos = new Vector3(...cube.position);
-    const playerPos = new Vector3(...playerPosition);
+    const safePlayerPos = playerPosition || [0, 2, 8];
+    const playerPos = new Vector3(...safePlayerPos);
     return cubePos.distanceTo(playerPos);
   }, [cube.position, playerPosition]);
 
