@@ -151,18 +151,45 @@ export function GameWorld() {
             {/* HUD */}
             <GameHUD isPointerLocked={isPointerLocked} isFullscreen={isFullscreen} />
 
-            {/* Click to play overlay - ONLY shows when not locked AND registered */}
+            {/* Click to play overlay - ONLY shows when not locked */}
             {!isPointerLocked && (
               <div 
-                className="absolute inset-0 flex items-center justify-center bg-black/30 cursor-pointer z-20 pointer-events-auto"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleRequestPointerLock();
-                }}
+                className="absolute inset-0 flex items-center justify-center bg-black/60 cursor-pointer z-20"
+                onClick={handleRequestPointerLock}
               >
-                <div className="text-center text-white pointer-events-none">
-                  <p className="text-lg font-semibold">Click to Play</p>
-                  <p className="text-sm text-white/70">Press ESC to release cursor</p>
+                <div className="glass-card rounded-xl p-8 text-center max-w-lg animate-fade-in pointer-events-none">
+                  <div className="w-16 h-16 text-primary mx-auto mb-4 animate-pulse flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M14.531 12.469 6.619 20.38a1 1 0 1 1-3-3l7.912-7.912"/>
+                      <path d="M15.686 4.314A12.5 12.5 0 0 0 5.461 2.958 1 1 0 0 0 5.58 4.71a22 22 0 0 1 6.318 3.393"/>
+                      <path d="M17.7 3.7a1 1 0 0 0-1.4 0l-4.6 4.6a1 1 0 0 0 0 1.4l2.6 2.6a1 1 0 0 0 1.4 0l4.6-4.6a1 1 0 0 0 0-1.4z"/>
+                      <path d="M19.686 8.314a12.5 12.5 0 0 1 1.356 10.225 1 1 0 0 1-1.751-.119 22 22 0 0 0-3.393-6.319"/>
+                    </svg>
+                  </div>
+                  <h2 className="font-pixel text-2xl text-primary neon-text mb-6">CLICK TO PLAY</h2>
+                  
+                  <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground mb-6">
+                    <div className="glass-card rounded-lg p-3">
+                      <kbd className="px-2 py-1 bg-muted rounded text-foreground">WASD</kbd>
+                      <p className="mt-1">Move</p>
+                    </div>
+                    <div className="glass-card rounded-lg p-3">
+                      <kbd className="px-2 py-1 bg-muted rounded text-foreground">Mouse</kbd>
+                      <p className="mt-1">Look</p>
+                    </div>
+                    <div className="glass-card rounded-lg p-3">
+                      <kbd className="px-2 py-1 bg-muted rounded text-foreground">Hold Click</kbd>
+                      <p className="mt-1">Mine Block</p>
+                    </div>
+                    <div className="glass-card rounded-lg p-3">
+                      <kbd className="px-2 py-1 bg-muted rounded text-foreground">Space</kbd>
+                      <p className="mt-1">Jump</p>
+                    </div>
+                  </div>
+
+                  <p className="text-xs text-muted-foreground">
+                    Press <kbd className="px-1.5 py-0.5 bg-muted rounded">ESC</kbd> to release cursor
+                  </p>
                 </div>
               </div>
             )}

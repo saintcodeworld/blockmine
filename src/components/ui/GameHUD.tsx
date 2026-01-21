@@ -1,5 +1,5 @@
 import { useGameStore } from '@/store/gameStore';
-import { Pickaxe, Coins, Target } from 'lucide-react';
+import { Pickaxe, Coins } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 interface GameHUDProps {
@@ -49,51 +49,9 @@ export function GameHUD({ isPointerLocked, isFullscreen = false }: GameHUDProps)
 
   return (
     <div className="absolute inset-0 pointer-events-none">
-      {/* Click to play overlay */}
-      {!isPointerLocked && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/70 pointer-events-auto z-40">
-          <div className="glass-card rounded-xl p-8 text-center max-w-lg animate-fade-in">
-            <Pickaxe className="w-16 h-16 text-primary mx-auto mb-4 animate-pulse" />
-            <h2 className="font-pixel text-2xl text-primary neon-text mb-6">CLICK TO PLAY</h2>
-            
-            <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground mb-6">
-              <div className="glass-card rounded-lg p-3">
-                <kbd className="px-2 py-1 bg-muted rounded text-foreground">WASD</kbd>
-                <p className="mt-1">Move</p>
-              </div>
-              <div className="glass-card rounded-lg p-3">
-                <kbd className="px-2 py-1 bg-muted rounded text-foreground">Mouse</kbd>
-                <p className="mt-1">Look</p>
-              </div>
-              <div className="glass-card rounded-lg p-3">
-                <kbd className="px-2 py-1 bg-muted rounded text-foreground">Hold Click</kbd>
-                <p className="mt-1">Mine Block</p>
-              </div>
-              <div className="glass-card rounded-lg p-3">
-                <kbd className="px-2 py-1 bg-muted rounded text-foreground">Space</kbd>
-                <p className="mt-1">Jump</p>
-              </div>
-            </div>
-
-            <div className="p-4 bg-accent/20 rounded-lg border border-accent/30">
-              <div className="flex items-center justify-center gap-2 mb-2">
-                <Target className="w-5 h-5 text-primary" />
-                <span className="text-foreground font-medium">Mining Range: {MINING_REACH} blocks</span>
-              </div>
-              <p className="text-accent font-pixel text-lg">
-                +{TOKENS_PER_BLOCK.toLocaleString()} tokens per block
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Get close to blocks • Hold click for 2 seconds to mine
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Token counter */}
       {isPointerLocked && (
-        <div className="absolute top-4 left-4 pointer-events-auto">
+        <div className="absolute top-4 left-4">
           <div className="glass-card rounded-lg px-4 py-3 flex items-center gap-3">
             <Coins className="w-6 h-6 text-accent" />
             <div>
@@ -106,7 +64,7 @@ export function GameHUD({ isPointerLocked, isFullscreen = false }: GameHUDProps)
 
       {/* Mining HUD */}
       {isPointerLocked && (
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 pointer-events-auto">
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2">
           <div className="glass-card rounded-xl p-4 flex flex-col items-center gap-3 min-w-[300px]">
             {/* Mining progress */}
             {isMining && (
