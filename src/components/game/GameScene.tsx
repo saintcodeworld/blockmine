@@ -96,13 +96,17 @@ function Scene() {
 
 interface GameSceneProps {
   onRequestPointerLock: () => void;
+  isPointerLocked: boolean;
 }
 
-export function GameScene({ onRequestPointerLock }: GameSceneProps) {
+export function GameScene({ onRequestPointerLock, isPointerLocked }: GameSceneProps) {
   return (
     <Canvas 
       camera={{ position: [0, 2, 8], fov: 75, near: 0.1, far: 500 }} 
-      style={{ background: 'linear-gradient(180deg, #0a0a1a 0%, #1a1a2e 100%)', pointerEvents: 'none' }}
+      style={{ 
+        background: 'linear-gradient(180deg, #0a0a1a 0%, #1a1a2e 100%)', 
+        pointerEvents: isPointerLocked ? 'auto' : 'none' 
+      }}
       gl={{ antialias: true, alpha: false }}
       shadows
     >

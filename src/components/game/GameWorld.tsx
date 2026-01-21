@@ -120,9 +120,9 @@ export function GameWorld() {
               {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
             </Button>
 
-            {/* Game canvas - no pointer events, just rendering */}
+            {/* Game canvas - enable pointer events when locked for mining */}
             <div className="absolute inset-0">
-              <GameScene onRequestPointerLock={handleRequestPointerLock} />
+              <GameScene onRequestPointerLock={handleRequestPointerLock} isPointerLocked={isPointerLocked} />
             </div>
             
             {/* Crosshair */}
