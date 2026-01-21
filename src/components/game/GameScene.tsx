@@ -57,7 +57,10 @@ function Scene() {
       <hemisphereLight args={['#87CEEB', '#3d5c34', 0.5]} />
       
       {/* First-person player controller with collision */}
-      <FirstPersonController onPositionChange={handlePositionChange} />
+      <FirstPersonController 
+        onPositionChange={handlePositionChange} 
+        remotePlayers={remotePlayers}
+      />
       
       {/* Crosshair-based mining system */}
       <CrosshairMining />
