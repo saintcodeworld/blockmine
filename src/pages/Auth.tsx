@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -17,6 +17,9 @@ export default function Auth() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    const supabase = getSupabase();
+    if (!supabase) return;
+
     // Check if user is already logged in
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -38,6 +41,11 @@ export default function Auth() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const supabase = getSupabase();
+    if (!supabase) {
+      toast.error('Backend not available. Please refresh.');
+      return;
+    }
     setLoading(true);
 
     try {
