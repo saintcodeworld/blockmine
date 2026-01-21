@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useGameStore } from '@/store/gameStore';
 
 export interface RemotePlayer {
@@ -13,23 +13,32 @@ export interface RemotePlayer {
 const PLAYER_COLORS = [
   '#06b6d4', '#a855f7', '#10b981', '#f59e0b', '#ef4444',
   '#ec4899', '#8b5cf6', '#14b8a6', '#f97316', '#6366f1',
+  '#84cc16', '#22d3ee', '#e879f9', '#facc15', '#fb923c',
 ];
+
+// Throttle position updates to support 150+ players
+const UPDATE_INTERVAL = 100; // ms between position broadcasts
 
 export function useMultiplayer() {
   const player = useGameStore((state) => state.player);
+  const isMining = useGameStore((state) => state.isMining);
   const [remotePlayers, setRemotePlayers] = useState<Map<string, RemotePlayer>>(new Map());
   const [isConnected, setIsConnected] = useState(false);
+  const channelRef = useRef<any>(null);
+  const lastUpdateTime = useRef(0);
+  const pendingUpdate = useRef<{ position: [number, number, number]; rotation: number } | null>(null);
 
   useEffect(() => {
     if (!player) return;
 
-    // Dynamically import supabase to handle cases where env vars aren't loaded yet
+    let cleanup: (() => void) | undefined;
+
     const initMultiplayer = async () => {
       try {
         const { supabase } = await import('@/integrations/supabase/client');
         
         if (!supabase) {
-          console.log('Supabase not available yet');
+          console.log('Supabase not available, running in single-player mode');
           return;
         }
 
@@ -38,8 +47,13 @@ export function useMultiplayer() {
             presence: {
               key: player.id,
             },
+            broadcast: {
+              self: false,
+            },
           },
         });
+
+        channelRef.current = gameChannel;
 
         gameChannel
           .on('presence', { event: 'sync' }, () => {
@@ -51,11 +65,11 @@ export function useMultiplayer() {
                 const presence = presences[0] as any;
                 newPlayers.set(key, {
                   odocument: key,
-                  username: presence.username,
-                  position: presence.position || [0, 0, 0],
+                  username: presence.username || 'Player',
+                  position: presence.position || [0, 1.5, 0],
                   rotation: presence.rotation || 0,
                   isMining: presence.isMining || false,
-                  color: presence.color,
+                  color: presence.color || PLAYER_COLORS[0],
                 });
               }
             });
@@ -69,11 +83,11 @@ export function useMultiplayer() {
                 const next = new Map(prev);
                 next.set(key, {
                   odocument: key,
-                  username: presence.username,
-                  position: presence.position || [0, 0, 0],
+                  username: presence.username || 'Player',
+                  position: presence.position || [0, 1.5, 0],
                   rotation: presence.rotation || 0,
                   isMining: presence.isMining || false,
-                  color: presence.color,
+                  color: presence.color || PLAYER_COLORS[0],
                 });
                 return next;
               });
@@ -92,16 +106,17 @@ export function useMultiplayer() {
               const color = PLAYER_COLORS[Math.floor(Math.random() * PLAYER_COLORS.length)];
               await gameChannel.track({
                 username: player.username,
-                position: [0, 0, 0],
-                rotation: 0,
+                position: player.position,
+                rotation: player.rotation,
                 isMining: false,
                 color,
               });
             }
           });
 
-        return () => {
+        cleanup = () => {
           gameChannel.unsubscribe();
+          channelRef.current = null;
           setIsConnected(false);
         };
       } catch (error) {
@@ -110,14 +125,50 @@ export function useMultiplayer() {
     };
 
     initMultiplayer();
-  }, [player]);
 
+    return () => {
+      if (cleanup) cleanup();
+    };
+  }, [player?.id]);
+
+  // Update position with throttling to handle 150+ players
   const updatePosition = useCallback(
-    async (position: [number, number, number], rotation: number, isMining: boolean) => {
-      // Position updates handled via presence track - simplified for now
+    async (position: [number, number, number], rotation: number) => {
+      if (!channelRef.current || !player) return;
+
+      const now = Date.now();
+      pendingUpdate.current = { position, rotation };
+
+      if (now - lastUpdateTime.current >= UPDATE_INTERVAL) {
+        lastUpdateTime.current = now;
+        try {
+          await channelRef.current.track({
+            username: player.username,
+            position: pendingUpdate.current.position,
+            rotation: pendingUpdate.current.rotation,
+            isMining,
+            color: PLAYER_COLORS[Math.floor(Math.random() * PLAYER_COLORS.length)],
+          });
+        } catch (error) {
+          // Silently handle update errors
+        }
+      }
     },
-    []
+    [player, isMining]
   );
+
+  // Sync position periodically
+  useEffect(() => {
+    if (!isConnected || !player) return;
+
+    const interval = setInterval(() => {
+      if (pendingUpdate.current) {
+        updatePosition(pendingUpdate.current.position, pendingUpdate.current.rotation);
+      }
+    }, UPDATE_INTERVAL);
+
+    return () => clearInterval(interval);
+  }, [isConnected, player, updatePosition]);
 
   return {
     remotePlayers: Array.from(remotePlayers.values()),
