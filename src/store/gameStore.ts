@@ -131,6 +131,13 @@ export const useGameStore = create<GameState>((set, get) => ({
       .map(b => b.toString(16).padStart(2, '0'))
       .join('');
 
+    // Generate random spawn position to avoid collision with other players
+    // Spawn in a ring around the center, avoiding the very center
+    const angle = Math.random() * Math.PI * 2;
+    const distance = 3 + Math.random() * 4; // 3-7 units from center
+    const spawnX = Math.cos(angle) * distance;
+    const spawnZ = 8 + Math.sin(angle) * distance; // Offset from base spawn
+
     const player: Player = {
       id: `player-${Date.now()}`,
       username,
@@ -138,7 +145,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       privateKey,
       tokens: 0,
       totalMined: 0,
-      position: [0, 2, 8],
+      position: [spawnX, 2, spawnZ],
       rotation: 0,
     };
 

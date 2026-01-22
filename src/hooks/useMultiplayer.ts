@@ -43,6 +43,7 @@ export function useMultiplayer() {
   const [isConnected, setIsConnected] = useState(false);
   
   const lastUpdateTime = useRef(0);
+  const lastMiningState = useRef(false);
   const pendingUpdate = useRef<{ position: [number, number, number]; rotation: number } | null>(null);
   const playerColorRef = useRef(PLAYER_COLORS[Math.floor(Math.random() * PLAYER_COLORS.length)]);
 
@@ -117,7 +118,7 @@ export function useMultiplayer() {
                 username: p.username || 'Player',
                 position: p.position || [0, 1.5, 0],
                 rotation: p.rotation || 0,
-                isMining: p.isMining || false,
+                isMining: Boolean(p.isMining),
                 color: p.color || PLAYER_COLORS[0],
               });
             });
@@ -136,7 +137,7 @@ export function useMultiplayer() {
               username: p.username || 'Player',
               position: p.position || [0, 1.5, 0],
               rotation: p.rotation || 0,
-              isMining: p.isMining || false,
+              isMining: Boolean(p.isMining),
               color: p.color || PLAYER_COLORS[0],
             });
             notifyStateChange();
@@ -176,6 +177,25 @@ export function useMultiplayer() {
 
     initChannel();
   }, [presenceKey, player?.id, player?.username, user?.id]);
+
+  // Broadcast mining state changes immediately
+  useEffect(() => {
+    if (!globalChannel || !player || !sharedIsConnected) return;
+    
+    // Only send update if mining state actually changed
+    if (lastMiningState.current !== isMining) {
+      lastMiningState.current = isMining;
+      
+      globalChannel.track({
+        userId: user?.id || player.id,
+        username: player.username,
+        position: player.position,
+        rotation: player.rotation,
+        isMining: isMining,
+        color: playerColorRef.current,
+      }).catch(() => {});
+    }
+  }, [isMining, player, user?.id]);
 
   const updatePosition = useCallback(
     async (position: [number, number, number], rotation: number) => {
