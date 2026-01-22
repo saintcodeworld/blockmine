@@ -48,6 +48,12 @@ export function ThirdPersonController({ onPositionChange }: ThirdPersonControlle
   // Keyboard controls
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore game controls when typing in inputs
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+        return;
+      }
+      
       if (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
         e.preventDefault();
       }
@@ -63,6 +69,12 @@ export function ThirdPersonController({ onPositionChange }: ThirdPersonControlle
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
+      // Ignore game controls when typing in inputs
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+        return;
+      }
+      
       switch (e.code) {
         case 'KeyW': case 'ArrowUp': keys.current.forward = false; break;
         case 'KeyS': case 'ArrowDown': keys.current.backward = false; break;
