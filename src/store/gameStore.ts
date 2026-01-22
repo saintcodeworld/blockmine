@@ -40,6 +40,7 @@ interface GameState {
   
   // Actions
   register: (username: string) => void;
+  updatePlayerFromDb: (player: Player) => void;
   startMining: (cubeId: string) => void;
   stopMining: () => void;
   updateMining: () => void;
@@ -145,6 +146,15 @@ export const useGameStore = create<GameState>((set, get) => ({
       player, 
       isRegistered: true,
       cubes: generateCubes(),
+    });
+  },
+
+  updatePlayerFromDb: (player: Player) => {
+    const state = get();
+    set({ 
+      player,
+      isRegistered: true,
+      cubes: state.cubes.length > 0 ? state.cubes : generateCubes(),
     });
   },
 

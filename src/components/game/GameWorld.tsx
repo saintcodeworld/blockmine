@@ -7,8 +7,16 @@ import { Crosshair } from './Crosshair';
 import { GameSidebar } from '@/components/ui/GameSidebar';
 import { Maximize2, Minimize2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/hooks/useAuth';
+import { usePlayerProgress } from '@/hooks/usePlayerProgress';
 
 export function GameWorld() {
+  const { user, getUsername } = useAuth();
+  const username = getUsername();
+  
+  // Initialize player progress from database
+  usePlayerProgress(user?.id, username);
+  
   const isRegistered = useGameStore((state) => state.isRegistered);
   const [isPointerLocked, setIsPointerLocked] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
