@@ -3,6 +3,7 @@ import { useGameStore } from '@/store/gameStore';
 import { RegisterScreen } from '@/components/ui/RegisterScreen';
 import { GameScene } from './GameScene';
 import { GameHUD } from '@/components/ui/GameHUD';
+import { GameChat } from '@/components/ui/GameChat';
 import { Crosshair } from './Crosshair';
 import { GameSidebar } from '@/components/ui/GameSidebar';
 import { Maximize2, Minimize2 } from 'lucide-react';
@@ -20,6 +21,7 @@ export function GameWorld() {
   const isRegistered = useGameStore((state) => state.isRegistered);
   const [isPointerLocked, setIsPointerLocked] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isChatFocused, setIsChatFocused] = useState(false);
   const gameContainerRef = useRef<HTMLDivElement>(null);
 
   const handleRequestPointerLock = useCallback(async () => {
@@ -158,6 +160,13 @@ export function GameWorld() {
             
             {/* HUD */}
             <GameHUD isPointerLocked={isPointerLocked} isFullscreen={isFullscreen} />
+            
+            {/* Chat */}
+            <GameChat 
+              isPointerLocked={isPointerLocked} 
+              onChatFocus={() => setIsChatFocused(true)}
+              onChatBlur={() => setIsChatFocused(false)}
+            />
 
             {/* Click to play overlay - ONLY shows when not locked */}
             {!isPointerLocked && (
@@ -192,6 +201,14 @@ export function GameWorld() {
                     <div className="glass-card rounded-lg p-3">
                       <kbd className="px-2 py-1 bg-muted rounded text-foreground">Space</kbd>
                       <p className="mt-1">Jump</p>
+                    </div>
+                    <div className="glass-card rounded-lg p-3">
+                      <kbd className="px-2 py-1 bg-muted rounded text-foreground">T</kbd>
+                      <p className="mt-1">Chat</p>
+                    </div>
+                    <div className="glass-card rounded-lg p-3">
+                      <kbd className="px-2 py-1 bg-muted rounded text-foreground">F</kbd>
+                      <p className="mt-1">Fullscreen</p>
                     </div>
                   </div>
 
