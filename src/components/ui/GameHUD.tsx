@@ -1,6 +1,7 @@
 import { useGameStore } from '@/store/gameStore';
-import { Pickaxe, Coins } from 'lucide-react';
+import { Pickaxe, Coins, Users } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { useMultiplayer } from '@/hooks/useMultiplayer';
 
 interface GameHUDProps {
   isPointerLocked: boolean;
@@ -19,6 +20,7 @@ export function GameHUD({ isPointerLocked, isFullscreen = false }: GameHUDProps)
   const cubes = useGameStore((state) => state.cubes);
   const TOKENS_PER_BLOCK = useGameStore((state) => state.TOKENS_PER_BLOCK);
   
+  const { playerCount, isConnected } = useMultiplayer();
   const [miningProgress, setMiningProgress] = useState(0);
 
   const selectedCube = cubes.find(c => c.id === selectedCubeId);
@@ -49,15 +51,24 @@ export function GameHUD({ isPointerLocked, isFullscreen = false }: GameHUDProps)
 
   return (
     <div className="absolute inset-0 pointer-events-none">
-      {/* Token counter */}
+      {/* Token counter and player count */}
       {isPointerLocked && (
-        <div className="absolute top-4 left-4">
+        <div className="absolute top-4 left-4 flex flex-col gap-2">
           <div className="glass-card rounded-lg px-4 py-3 flex items-center gap-3">
             <Coins className="w-6 h-6 text-accent" />
             <div>
               <span className="font-pixel text-accent text-xl">{player.tokens.toLocaleString()}</span>
               <p className="text-xs text-muted-foreground">TOKENS</p>
             </div>
+          </div>
+          
+          {/* Player count indicator */}
+          <div className="glass-card rounded-lg px-4 py-2 flex items-center gap-2">
+            <Users className="w-4 h-4 text-primary" />
+            <span className="font-pixel text-primary text-sm">{playerCount}</span>
+            <span className="text-xs text-muted-foreground">
+              {isConnected ? 'online' : 'connecting...'}
+            </span>
           </div>
         </div>
       )}
