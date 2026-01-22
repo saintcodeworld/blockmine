@@ -73,7 +73,7 @@ function Scene() {
       <MiningParticles />
       {/* Remote players with Steve models */}
       {remotePlayers.map((rplayer) => (
-        <RemotePlayer key={rplayer.odocument} player={rplayer} />
+        <RemotePlayer key={rplayer.odocumentId || rplayer.odocument} player={rplayer} />
       ))}
 
       {/* Demo player for testing - placed far from spawn, NOT included in collision */}

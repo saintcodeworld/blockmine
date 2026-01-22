@@ -1,8 +1,10 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useGameStore } from '@/store/gameStore';
+import { useAuth } from '@/hooks/useAuth';
 
 export interface RemotePlayer {
   odocument: string;
+  odocumentId: string; // Actual user ID for deduplication
   username: string;
   position: [number, number, number];
   rotation: number;
@@ -22,14 +24,24 @@ const UPDATE_INTERVAL = 100; // ms between position broadcasts
 export function useMultiplayer() {
   const player = useGameStore((state) => state.player);
   const isMining = useGameStore((state) => state.isMining);
+  const { user } = useAuth();
   const [remotePlayers, setRemotePlayers] = useState<Map<string, RemotePlayer>>(new Map());
   const [isConnected, setIsConnected] = useState(false);
   const channelRef = useRef<any>(null);
   const lastUpdateTime = useRef(0);
   const pendingUpdate = useRef<{ position: [number, number, number]; rotation: number } | null>(null);
+  const playerColorRef = useRef<string>(PLAYER_COLORS[Math.floor(Math.random() * PLAYER_COLORS.length)]);
+  const isInitializedRef = useRef(false);
+
+  // Use auth user ID as the unique presence key to prevent duplicate sessions
+  const presenceKey = user?.id || player?.id || '';
 
   useEffect(() => {
-    if (!player) return;
+    // Need both player and a valid presence key
+    if (!player || !presenceKey) return;
+    
+    // Prevent duplicate initialization
+    if (isInitializedRef.current && channelRef.current) return;
 
     let cleanup: (() => void) | undefined;
 
@@ -43,10 +55,16 @@ export function useMultiplayer() {
           return;
         }
 
+        // Unsubscribe from any existing channel first
+        if (channelRef.current) {
+          await channelRef.current.unsubscribe();
+          channelRef.current = null;
+        }
+
         const gameChannel = supabase.channel('game-world', {
           config: {
             presence: {
-              key: player.id,
+              key: presenceKey, // Use auth user ID as presence key
             },
             broadcast: {
               self: false,
@@ -62,39 +80,50 @@ export function useMultiplayer() {
             const newPlayers = new Map<string, RemotePlayer>();
             
             Object.entries(presenceState).forEach(([key, presences]) => {
-              if (key !== player.id && presences.length > 0) {
-                const presence = presences[0] as any;
-                newPlayers.set(key, {
-                  odocument: key,
-                  username: presence.username || 'Player',
-                  position: presence.position || [0, 1.5, 0],
-                  rotation: presence.rotation || 0,
-                  isMining: presence.isMining || false,
-                  color: presence.color || PLAYER_COLORS[0],
-                });
-              }
+              // Skip self - compare against auth user ID
+              if (key === presenceKey) return;
+              if (!presences || presences.length === 0) return;
+              
+              // Only use the first presence (latest) for each user
+              const presence = presences[0] as any;
+              
+              newPlayers.set(key, {
+                odocument: key,
+                odocumentId: presence.userId || key,
+                username: presence.username || 'Player',
+                position: presence.position || [0, 1.5, 0],
+                rotation: presence.rotation || 0,
+                isMining: presence.isMining || false,
+                color: presence.color || PLAYER_COLORS[0],
+              });
             });
             
             setRemotePlayers(newPlayers);
+            console.log(`[Multiplayer] Synced ${newPlayers.size} remote players`);
           })
           .on('presence', { event: 'join' }, ({ key, newPresences }) => {
-            if (key !== player.id && newPresences.length > 0) {
-              const presence = newPresences[0] as any;
-              setRemotePlayers((prev) => {
-                const next = new Map(prev);
-                next.set(key, {
-                  odocument: key,
-                  username: presence.username || 'Player',
-                  position: presence.position || [0, 1.5, 0],
-                  rotation: presence.rotation || 0,
-                  isMining: presence.isMining || false,
-                  color: presence.color || PLAYER_COLORS[0],
-                });
-                return next;
+            if (key === presenceKey) return;
+            if (!newPresences || newPresences.length === 0) return;
+            
+            const presence = newPresences[0] as any;
+            console.log(`[Multiplayer] Player joined: ${presence.username || key}`);
+            
+            setRemotePlayers((prev) => {
+              const next = new Map(prev);
+              next.set(key, {
+                odocument: key,
+                odocumentId: presence.userId || key,
+                username: presence.username || 'Player',
+                position: presence.position || [0, 1.5, 0],
+                rotation: presence.rotation || 0,
+                isMining: presence.isMining || false,
+                color: presence.color || PLAYER_COLORS[0],
               });
-            }
+              return next;
+            });
           })
           .on('presence', { event: 'leave' }, ({ key }) => {
+            console.log(`[Multiplayer] Player left: ${key}`);
             setRemotePlayers((prev) => {
               const next = new Map(prev);
               next.delete(key);
@@ -102,23 +131,31 @@ export function useMultiplayer() {
             });
           })
           .subscribe(async (status) => {
+            console.log(`[Multiplayer] Channel status: ${status}`);
             if (status === 'SUBSCRIBED') {
               setIsConnected(true);
-              const color = PLAYER_COLORS[Math.floor(Math.random() * PLAYER_COLORS.length)];
+              isInitializedRef.current = true;
+              
+              // Track our presence with userId for deduplication
               await gameChannel.track({
+                userId: user?.id || player.id,
                 username: player.username,
                 position: player.position,
                 rotation: player.rotation,
                 isMining: false,
-                color,
+                color: playerColorRef.current,
               });
+              console.log(`[Multiplayer] Joined as ${player.username} (${presenceKey})`);
             }
           });
 
         cleanup = () => {
+          console.log('[Multiplayer] Cleaning up channel');
           gameChannel.unsubscribe();
           channelRef.current = null;
+          isInitializedRef.current = false;
           setIsConnected(false);
+          setRemotePlayers(new Map());
         };
       } catch (error) {
         console.log('Multiplayer not available:', error);
@@ -130,7 +167,7 @@ export function useMultiplayer() {
     return () => {
       if (cleanup) cleanup();
     };
-  }, [player?.id]);
+  }, [presenceKey, player?.id, player?.username, user?.id]);
 
   // Update position with throttling to handle 150+ players
   const updatePosition = useCallback(
@@ -144,18 +181,19 @@ export function useMultiplayer() {
         lastUpdateTime.current = now;
         try {
           await channelRef.current.track({
+            userId: user?.id || player.id,
             username: player.username,
             position: pendingUpdate.current.position,
             rotation: pendingUpdate.current.rotation,
             isMining,
-            color: PLAYER_COLORS[Math.floor(Math.random() * PLAYER_COLORS.length)],
+            color: playerColorRef.current,
           });
         } catch (error) {
           // Silently handle update errors
         }
       }
     },
-    [player, isMining]
+    [player, isMining, user?.id]
   );
 
   // Sync position periodically

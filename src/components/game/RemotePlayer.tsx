@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Group, Vector3 } from 'three';
 import { Html } from '@react-three/drei';
@@ -10,6 +10,13 @@ interface RemotePlayerProps {
 }
 
 export function RemotePlayer({ player }: RemotePlayerProps) {
+  // Log when remote player is rendered
+  useEffect(() => {
+    console.log(`[RemotePlayer] Rendering player: ${player.username} at`, player.position);
+    return () => {
+      console.log(`[RemotePlayer] Unmounting player: ${player.username}`);
+    };
+  }, [player.username]);
   const groupRef = useRef<Group>(null);
   const lastPosition = useRef(new Vector3(...player.position));
   const [isMoving, setIsMoving] = useState(false);
