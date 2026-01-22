@@ -40,7 +40,10 @@ export function FirstPersonController({ onPositionChange, remotePlayers = [] }: 
   const remotePlayersRef = useRef(remotePlayers);
   remotePlayersRef.current = remotePlayers;
   
-  const position = useRef(new Vector3(0, GROUND_LEVEL, 8));
+  // Get initial position from game store (supports random spawn)
+  const player = useGameStore((state) => state.player);
+  const initialPos = player?.position || [0, GROUND_LEVEL, 8];
+  const position = useRef(new Vector3(initialPos[0], initialPos[1], initialPos[2]));
   const rotation = useRef({ x: 0, y: 0 });
   const velocity = useRef(new Vector3());
   const verticalVelocity = useRef(0);
