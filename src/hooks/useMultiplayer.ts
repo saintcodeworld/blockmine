@@ -116,6 +116,10 @@ export function useMultiplayer() {
 
         globalChannel = gameChannel;
 
+        // Track known players to detect actual joins/leaves
+        const knownPlayers = new Set<string>();
+        let hasInitialized = false;
+
         gameChannel
           .on('presence', { event: 'sync' }, () => {
             const presenceState = gameChannel.presenceState();
@@ -136,14 +140,23 @@ export function useMultiplayer() {
             });
             
             sharedRemotePlayers = newPlayers;
+            hasInitialized = true;
             notifyStateChange();
           })
           .on('presence', { event: 'join' }, ({ key, newPresences }) => {
             if (key === presenceKey || !newPresences?.length) return;
-            const p = newPresences[0] as any;
             
+            // Skip if this is initial sync (player was already there)
+            if (!hasInitialized || knownPlayers.has(key)) {
+              knownPlayers.add(key);
+              return;
+            }
+            
+            const p = newPresences[0] as any;
             const playerColor = p.color || PLAYER_COLORS[0];
             const playerUsername = p.username || 'Player';
+            
+            knownPlayers.add(key);
             
             const updated = new Map(sharedRemotePlayers);
             updated.set(key, {
@@ -158,12 +171,16 @@ export function useMultiplayer() {
             sharedRemotePlayers = updated;
             notifyStateChange();
             
-            // Send system message for player join
+            // Only send system message for actual new joins after initialization
             sendSystemMessage(playerUsername, 'join', playerColor);
           })
           .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
+            // Only notify if we actually knew about this player
+            if (!knownPlayers.has(key)) return;
+            
             // Get player info before removing
             const leavingPlayer = sharedRemotePlayers.get(key);
+            knownPlayers.delete(key);
             
             const updated = new Map(sharedRemotePlayers);
             updated.delete(key);
