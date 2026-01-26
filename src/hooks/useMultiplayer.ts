@@ -18,12 +18,13 @@ const PLAYER_COLORS = [
   '#84cc16', '#22d3ee', '#e879f9', '#facc15', '#fb923c',
 ];
 
-const UPDATE_INTERVAL = 100;
+const UPDATE_INTERVAL = 50; // Faster updates for smoother movement
 
 // Global singleton to prevent duplicate channels
 let globalChannel: any = null;
 let globalPresenceKey: string | null = null;
 let isInitializing = false;
+let cleanupTimeout: ReturnType<typeof setTimeout> | null = null;
 
 // Shared state that all hook instances can read
 let sharedRemotePlayers = new Map<string, RemotePlayer>();
@@ -69,6 +70,12 @@ export function useMultiplayer() {
   useEffect(() => {
     if (!player || !presenceKey) return;
     
+    // Clear any pending cleanup
+    if (cleanupTimeout) {
+      clearTimeout(cleanupTimeout);
+      cleanupTimeout = null;
+    }
+    
     // Already initialized with same key or currently initializing
     if ((globalChannel && globalPresenceKey === presenceKey) || isInitializing) {
       return;
@@ -87,9 +94,13 @@ export function useMultiplayer() {
           return;
         }
 
-        // Cleanup existing
+        // Cleanup existing channel properly
         if (globalChannel) {
-          await globalChannel.unsubscribe();
+          try {
+            await supabase.removeChannel(globalChannel);
+          } catch (e) {
+            // Ignore cleanup errors
+          }
           globalChannel = null;
         }
 
@@ -130,8 +141,8 @@ export function useMultiplayer() {
             if (key === presenceKey || !newPresences?.length) return;
             const p = newPresences[0] as any;
             
-            sharedRemotePlayers = new Map(sharedRemotePlayers);
-            sharedRemotePlayers.set(key, {
+            const updated = new Map(sharedRemotePlayers);
+            updated.set(key, {
               odocument: key,
               odocumentId: p.userId || key,
               username: p.username || 'Player',
@@ -140,11 +151,13 @@ export function useMultiplayer() {
               isMining: Boolean(p.isMining),
               color: p.color || PLAYER_COLORS[0],
             });
+            sharedRemotePlayers = updated;
             notifyStateChange();
           })
           .on('presence', { event: 'leave' }, ({ key }) => {
-            sharedRemotePlayers = new Map(sharedRemotePlayers);
-            sharedRemotePlayers.delete(key);
+            const updated = new Map(sharedRemotePlayers);
+            updated.delete(key);
+            sharedRemotePlayers = updated;
             notifyStateChange();
           })
           .subscribe(async (status) => {
@@ -176,6 +189,28 @@ export function useMultiplayer() {
     };
 
     initChannel();
+    
+    // Cleanup on unmount with delay to prevent rapid reconnections
+    return () => {
+      cleanupTimeout = setTimeout(async () => {
+        if (globalChannel) {
+          try {
+            const { getSupabase } = await import('@/lib/supabase');
+            const supabase = getSupabase();
+            if (supabase) {
+              await supabase.removeChannel(globalChannel);
+            }
+          } catch (e) {
+            // Ignore
+          }
+          globalChannel = null;
+          globalPresenceKey = null;
+          sharedIsConnected = false;
+          sharedRemotePlayers = new Map();
+          notifyStateChange();
+        }
+      }, 1000); // 1 second delay before cleanup
+    };
   }, [presenceKey, player?.id, player?.username, user?.id]);
 
   // Broadcast mining state changes immediately

@@ -1,12 +1,10 @@
 import { Canvas } from '@react-three/fiber';
-import { Html } from '@react-three/drei';
 import { Suspense, useCallback } from 'react';
 import { useGameStore } from '@/store/gameStore';
 import { MineCube } from './MineCube';
 import { FirstPersonController } from './FirstPersonController';
 import { RemotePlayer } from './RemotePlayer';
 import { FirstPersonHand } from './FirstPersonHand';
-import { SteveModel } from './SteveModel';
 import { SkyVoid } from './SkyVoid';
 import { CrosshairMining } from './CrosshairMining';
 import { MiningParticles } from './MiningParticles';
@@ -76,17 +74,6 @@ function Scene() {
         <RemotePlayer key={rplayer.odocumentId || rplayer.odocument} player={rplayer} />
       ))}
 
-      {/* Demo player for testing - placed far from spawn, NOT included in collision */}
-      {remotePlayers.length === 0 && (
-        <group position={[15, 0.5, -10]}>
-          <SteveModel isMoving={false} isMining={false} />
-          <Html position={[0, 3, 0]} center distanceFactor={15}>
-            <div className="px-2 py-1 bg-black/80 rounded text-white text-xs font-bold border border-cyan-500">
-              Demo Player
-            </div>
-          </Html>
-        </group>
-      )}
       
       {/* Mineable cubes with shadows */}
       {cubes.map((cube) => (
