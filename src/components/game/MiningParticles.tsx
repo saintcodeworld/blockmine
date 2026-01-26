@@ -176,32 +176,37 @@ export function MiningParticles() {
     }]);
   };
 
-  // Update particles
+  // Update particles - mutate in place to avoid React re-renders
   useFrame((_, delta) => {
-    setEffects(prev => {
-      const updated = prev.map(effect => ({
-        ...effect,
-        particles: effect.particles
-          .map(p => {
-            // Apply gravity and velocity
-            p.velocity.y -= 0.003;
-            p.position.add(p.velocity);
-            p.life -= delta / p.maxLife;
-            
-            // Sparkle particles float more
-            if (p.isSparkle) {
-              p.velocity.y += 0.001;
-              p.velocity.x *= 0.98;
-              p.velocity.z *= 0.98;
-            }
-            
-            return p;
-          })
-          .filter(p => p.life > 0)
-      })).filter(effect => effect.particles.length > 0);
+    let needsCleanup = false;
+    
+    for (const effect of effects) {
+      for (const p of effect.particles) {
+        // Apply gravity and velocity
+        p.velocity.y -= 0.003;
+        p.position.add(p.velocity);
+        p.life -= delta / p.maxLife;
+        
+        // Sparkle particles float more
+        if (p.isSparkle) {
+          p.velocity.y += 0.001;
+          p.velocity.x *= 0.98;
+          p.velocity.z *= 0.98;
+        }
+      }
       
-      return updated;
-    });
+      // Check if any particles died
+      const aliveCount = effect.particles.filter(p => p.life > 0).length;
+      if (aliveCount < effect.particles.length) {
+        effect.particles = effect.particles.filter(p => p.life > 0);
+        needsCleanup = true;
+      }
+    }
+    
+    // Only update state when effects need to be removed entirely
+    if (needsCleanup) {
+      setEffects(prev => prev.filter(e => e.particles.length > 0));
+    }
   });
 
   return (
