@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useGameStore } from '@/store/gameStore';
 import { useAuth } from '@/hooks/useAuth';
+import { sendSystemMessage } from '@/hooks/useChat';
 
 export interface RemotePlayer {
   odocument: string;
@@ -141,24 +142,41 @@ export function useMultiplayer() {
             if (key === presenceKey || !newPresences?.length) return;
             const p = newPresences[0] as any;
             
+            const playerColor = p.color || PLAYER_COLORS[0];
+            const playerUsername = p.username || 'Player';
+            
             const updated = new Map(sharedRemotePlayers);
             updated.set(key, {
               odocument: key,
               odocumentId: p.userId || key,
-              username: p.username || 'Player',
+              username: playerUsername,
               position: p.position || [0, 1.5, 0],
               rotation: p.rotation || 0,
               isMining: Boolean(p.isMining),
-              color: p.color || PLAYER_COLORS[0],
+              color: playerColor,
             });
             sharedRemotePlayers = updated;
             notifyStateChange();
+            
+            // Send system message for player join
+            sendSystemMessage(playerUsername, 'join', playerColor);
           })
-          .on('presence', { event: 'leave' }, ({ key }) => {
+          .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
+            // Get player info before removing
+            const leavingPlayer = sharedRemotePlayers.get(key);
+            
             const updated = new Map(sharedRemotePlayers);
             updated.delete(key);
             sharedRemotePlayers = updated;
             notifyStateChange();
+            
+            // Send system message for player leave
+            if (leavingPlayer) {
+              sendSystemMessage(leavingPlayer.username, 'leave', leavingPlayer.color);
+            } else if (leftPresences?.length) {
+              const p = leftPresences[0] as any;
+              sendSystemMessage(p.username || 'Player', 'leave', p.color || PLAYER_COLORS[0]);
+            }
           })
           .subscribe(async (status) => {
             console.log(`[Multiplayer] Status: ${status}`);

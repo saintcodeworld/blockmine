@@ -162,6 +162,22 @@ export function GameChat({ isPointerLocked, onChatFocus, onChatBlur }: GameChatP
 }
 
 function MessageBubble({ message, formatTime }: { message: ChatMessage; formatTime: (t: number) => string }) {
+  // System message styling
+  if (message.isSystem) {
+    const icon = message.systemType === 'join' ? '→' : '←';
+    const actionColor = message.systemType === 'join' ? 'text-green-400' : 'text-red-400';
+    
+    return (
+      <div className="text-xs py-0.5 px-2 bg-muted/30 rounded text-center">
+        <span className={actionColor}>{icon}</span>{' '}
+        <span style={{ color: message.color }} className="font-semibold">
+          {message.username}
+        </span>{' '}
+        <span className="text-muted-foreground italic">{message.message}</span>
+      </div>
+    );
+  }
+
   return (
     <div className="text-xs group">
       <span className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
