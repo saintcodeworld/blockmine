@@ -1,7 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useGameStore } from '@/store/gameStore';
 import { useAuth } from '@/hooks/useAuth';
-import { sendSystemMessage } from '@/hooks/useChat';
 
 export interface RemotePlayer {
   odocument: string;
@@ -171,8 +170,6 @@ export function useMultiplayer() {
             sharedRemotePlayers = updated;
             notifyStateChange();
             
-            // Only send system message for actual new joins after initialization
-            sendSystemMessage(playerUsername, 'join', playerColor);
           })
           .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
             // Only notify if we actually knew about this player
@@ -187,13 +184,6 @@ export function useMultiplayer() {
             sharedRemotePlayers = updated;
             notifyStateChange();
             
-            // Send system message for player leave
-            if (leavingPlayer) {
-              sendSystemMessage(leavingPlayer.username, 'leave', leavingPlayer.color);
-            } else if (leftPresences?.length) {
-              const p = leftPresences[0] as any;
-              sendSystemMessage(p.username || 'Player', 'leave', p.color || PLAYER_COLORS[0]);
-            }
           })
           .subscribe(async (status) => {
             console.log(`[Multiplayer] Status: ${status}`);
