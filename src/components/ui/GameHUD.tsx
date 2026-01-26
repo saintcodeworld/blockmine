@@ -2,6 +2,7 @@ import { useGameStore } from '@/store/gameStore';
 import { Pickaxe, Coins, Users } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useMultiplayer } from '@/hooks/useMultiplayer';
+import { Leaderboard } from './Leaderboard';
 
 interface GameHUDProps {
   isPointerLocked: boolean;
@@ -51,6 +52,8 @@ export function GameHUD({ isPointerLocked, isFullscreen = false }: GameHUDProps)
 
   return (
     <div className="absolute inset-0 pointer-events-none">
+      {/* Leaderboard */}
+      {isPointerLocked && <Leaderboard />}
       {/* Token counter and player count */}
       {isPointerLocked && (
         <div className="absolute top-4 left-4 flex flex-col gap-2">
