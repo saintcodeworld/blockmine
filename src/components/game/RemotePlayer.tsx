@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Group, Vector3 } from 'three';
 import { Html } from '@react-three/drei';
@@ -10,50 +10,73 @@ interface RemotePlayerProps {
 }
 
 export function RemotePlayer({ player }: RemotePlayerProps) {
-  // Log when remote player is rendered
-  useEffect(() => {
-    console.log(`[RemotePlayer] Rendering player: ${player.username} at`, player.position);
-    return () => {
-      console.log(`[RemotePlayer] Unmounting player: ${player.username}`);
-    };
-  }, [player.username]);
   const groupRef = useRef<Group>(null);
-  const lastPosition = useRef(new Vector3(...player.position));
+  
+  // Use refs for smooth interpolation targets
+  const targetPosition = useRef(new Vector3(...player.position));
+  const targetRotation = useRef(player.rotation);
+  const lastFramePosition = useRef(new Vector3(...player.position));
   const [isMoving, setIsMoving] = useState(false);
+  const movementThreshold = useRef(0);
 
-  useFrame(() => {
+  // Update targets when player data changes
+  useEffect(() => {
+    targetPosition.current.set(player.position[0], player.position[1], player.position[2]);
+    targetRotation.current = player.rotation;
+  }, [player.position[0], player.position[1], player.position[2], player.rotation]);
+
+  // Initial position calculation
+  const initialPosition = useMemo(() => {
+    return new Vector3(player.position[0], player.position[1] - 0.5, player.position[2]);
+  }, []); // Only compute once on mount
+
+  useFrame((_, delta) => {
     if (!groupRef.current) return;
 
-    const targetX = player.position[0];
-    const targetY = player.position[1] - 0.5; // Offset for model feet (adjusted)
-    const targetZ = player.position[2];
+    const lerpFactor = Math.min(1, delta * 8); // Smoother, frame-rate independent
 
-    // Smooth interpolation
-    groupRef.current.position.x += (targetX - groupRef.current.position.x) * 0.15;
-    groupRef.current.position.y += (targetY - groupRef.current.position.y) * 0.15;
-    groupRef.current.position.z += (targetZ - groupRef.current.position.z) * 0.15;
+    // Smooth position interpolation
+    const targetX = targetPosition.current.x;
+    const targetY = targetPosition.current.y - 0.5; // Offset for model feet
+    const targetZ = targetPosition.current.z;
 
-    // Rotation with wrapping
-    const targetRotation = player.rotation + Math.PI;
-    let rotDiff = targetRotation - groupRef.current.rotation.y;
+    groupRef.current.position.x += (targetX - groupRef.current.position.x) * lerpFactor;
+    groupRef.current.position.y += (targetY - groupRef.current.position.y) * lerpFactor;
+    groupRef.current.position.z += (targetZ - groupRef.current.position.z) * lerpFactor;
+
+    // Smooth rotation interpolation with wrapping
+    const targetRot = targetRotation.current + Math.PI;
+    let rotDiff = targetRot - groupRef.current.rotation.y;
     while (rotDiff > Math.PI) rotDiff -= Math.PI * 2;
     while (rotDiff < -Math.PI) rotDiff += Math.PI * 2;
-    groupRef.current.rotation.y += rotDiff * 0.12;
+    groupRef.current.rotation.y += rotDiff * lerpFactor;
 
-    // Detect movement
-    const currentPos = new Vector3(
-      groupRef.current.position.x,
-      groupRef.current.position.y,
-      groupRef.current.position.z
+    // Detect movement with hysteresis to avoid flickering
+    const currentPos = groupRef.current.position;
+    const moveDist = Math.sqrt(
+      Math.pow(currentPos.x - lastFramePosition.current.x, 2) +
+      Math.pow(currentPos.z - lastFramePosition.current.z, 2)
     );
-    const distance = currentPos.distanceTo(lastPosition.current);
-    setIsMoving(distance > 0.008);
-    lastPosition.current.copy(currentPos);
+    
+    // Use hysteresis: higher threshold to stop, lower to start
+    if (isMoving) {
+      movementThreshold.current = Math.max(0, movementThreshold.current - delta);
+      if (moveDist < 0.001 && movementThreshold.current <= 0) {
+        setIsMoving(false);
+      }
+    } else {
+      if (moveDist > 0.01) {
+        setIsMoving(true);
+        movementThreshold.current = 0.1; // Keep moving for at least 0.1 seconds
+      }
+    }
+    
+    lastFramePosition.current.set(currentPos.x, currentPos.y, currentPos.z);
   });
 
   return (
-    <group ref={groupRef} position={[player.position[0], player.position[1] - 0.5, player.position[2]]}>
-      {/* Steve model - scaled up for visibility */}
+    <group ref={groupRef} position={initialPosition}>
+      {/* Steve model */}
       <SteveModel isMoving={isMoving} isMining={player.isMining} />
       
       {/* Shadow */}
@@ -63,7 +86,7 @@ export function RemotePlayer({ player }: RemotePlayerProps) {
       </mesh>
       
       {/* Username label */}
-      <Html position={[0, 2.2, 0]} center distanceFactor={15} zIndexRange={[0, 10]}>
+      <Html position={[0, 2.5, 0]} center distanceFactor={12} zIndexRange={[0, 10]}>
         <div 
           className="px-3 py-1.5 rounded-lg text-white text-xs font-bold whitespace-nowrap select-none"
           style={{ 
@@ -74,6 +97,7 @@ export function RemotePlayer({ player }: RemotePlayerProps) {
           }}
         >
           {player.username}
+          {player.isMining && <span className="ml-1">⛏️</span>}
         </div>
       </Html>
     </group>
