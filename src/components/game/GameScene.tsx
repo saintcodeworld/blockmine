@@ -8,6 +8,7 @@ import { FirstPersonHand } from './FirstPersonHand';
 import { SkyVoid } from './SkyVoid';
 import { CrosshairMining } from './CrosshairMining';
 import { MiningParticles } from './MiningParticles';
+import { Wildlife } from './Wildlife';
 import { useMultiplayer } from '@/hooks/useMultiplayer';
 
 function Scene() {
@@ -31,6 +32,9 @@ function Scene() {
     <>
       {/* Sky void with clouds and realistic environment */}
       <SkyVoid />
+      
+      {/* Animated wildlife */}
+      <Wildlife />
       
       {/* Warm, bright outdoor lighting */}
       <ambientLight intensity={0.6} color="#fffaf0" />
