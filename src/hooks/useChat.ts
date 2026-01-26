@@ -7,8 +7,6 @@ export interface ChatMessage {
   message: string;
   color: string;
   timestamp: number;
-  isSystem?: boolean;
-  systemType?: 'join' | 'leave' | 'info';
 }
 
 const PLAYER_COLORS = [
@@ -16,57 +14,12 @@ const PLAYER_COLORS = [
   '#ec4899', '#8b5cf6', '#14b8a6', '#f97316', '#6366f1',
 ];
 
-// Singleton to allow external components to send system messages
-let chatChannelRef: any = null;
-let systemMessageCallback: ((msg: ChatMessage) => void) | null = null;
-
-export function sendSystemMessage(username: string, type: 'join' | 'leave', color: string = '#06b6d4') {
-  const messageText = type === 'join' ? 'joined the game' : 'left the game';
-  
-  const message: ChatMessage = {
-    id: `sys-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-    username,
-    message: messageText,
-    color,
-    timestamp: Date.now(),
-    isSystem: true,
-    systemType: type,
-  };
-
-  // Add locally immediately
-  if (systemMessageCallback) {
-    systemMessageCallback(message);
-  }
-
-  // Broadcast to others
-  if (chatChannelRef) {
-    chatChannelRef.send({
-      type: 'broadcast',
-      event: 'system-message',
-      payload: message,
-    }).catch(() => {});
-  }
-}
-
 export function useChat() {
   const player = useGameStore((state) => state.player);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   const channelRef = useRef<any>(null);
   const colorRef = useRef(PLAYER_COLORS[Math.floor(Math.random() * PLAYER_COLORS.length)]);
-
-  // Register callback for system messages
-  useEffect(() => {
-    systemMessageCallback = (msg) => {
-      setMessages((prev) => {
-        const newMessages = [...prev, msg];
-        return newMessages.slice(-50);
-      });
-    };
-    return () => {
-      systemMessageCallback = null;
-    };
-  }, []);
 
   useEffect(() => {
     if (!player) return;
@@ -92,17 +45,9 @@ export function useChat() {
         });
 
         channelRef.current = chatChannel;
-        chatChannelRef = chatChannel;
 
         chatChannel
           .on('broadcast', { event: 'chat-message' }, ({ payload }) => {
-            const msg = payload as ChatMessage;
-            setMessages((prev) => {
-              const newMessages = [...prev, msg];
-              return newMessages.slice(-50);
-            });
-          })
-          .on('broadcast', { event: 'system-message' }, ({ payload }) => {
             const msg = payload as ChatMessage;
             setMessages((prev) => {
               const newMessages = [...prev, msg];
@@ -118,7 +63,6 @@ export function useChat() {
         cleanup = () => {
           chatChannel.unsubscribe();
           channelRef.current = null;
-          chatChannelRef = null;
           setIsConnected(false);
         };
       } catch (error) {
