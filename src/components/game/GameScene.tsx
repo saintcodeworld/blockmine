@@ -32,28 +32,31 @@ function Scene() {
       {/* Sky void with clouds and realistic environment */}
       <SkyVoid />
       
-      {/* Realistic outdoor lighting */}
-      <ambientLight intensity={0.4} color="#b4d4ff" />
+      {/* Warm, bright outdoor lighting */}
+      <ambientLight intensity={0.6} color="#fffaf0" />
       <directionalLight 
-        position={[80, 120, 60]} 
-        intensity={2} 
+        position={[100, 150, 80]} 
+        intensity={2.5} 
         castShadow 
         shadow-mapSize={[4096, 4096]}
-        shadow-camera-far={300}
-        shadow-camera-left={-100}
-        shadow-camera-right={100}
-        shadow-camera-top={100}
-        shadow-camera-bottom={-100}
+        shadow-camera-far={400}
+        shadow-camera-left={-120}
+        shadow-camera-right={120}
+        shadow-camera-top={120}
+        shadow-camera-bottom={-120}
         shadow-bias={-0.0001}
-        color="#fff5e6"
+        color="#fff8dc"
       />
-      {/* Fill light from opposite direction */}
+      {/* Soft fill light */}
       <directionalLight 
-        position={[-50, 40, -50]} 
-        intensity={0.3} 
-        color="#a8c4e0"
+        position={[-60, 50, -60]} 
+        intensity={0.5} 
+        color="#e0f0ff"
       />
-      <hemisphereLight args={['#87CEEB', '#3d5c34', 0.5]} />
+      {/* Warm ground bounce */}
+      <hemisphereLight args={['#87CEEB', '#4ade80', 0.7]} />
+      {/* Subtle rim light */}
+      <pointLight position={[0, 50, 0]} intensity={0.3} color="#fff5e6" />
       
       {/* First-person player controller with collision */}
       <FirstPersonController 

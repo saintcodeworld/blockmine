@@ -1,28 +1,28 @@
 import { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Cloud, Clouds, Sky, Stars } from '@react-three/drei';
-import { Group, Color } from 'three';
+import { Group } from 'three';
 
-// Realistic Minecraft-style sky with day/night atmosphere
+// Beautiful family-friendly sky with warm daylight atmosphere
 export function SkyVoid() {
   const cloudsRef = useRef<Group>(null);
 
   // Slowly rotate clouds for a dynamic feel
   useFrame((state) => {
     if (cloudsRef.current) {
-      cloudsRef.current.rotation.y = state.clock.elapsedTime * 0.003;
+      cloudsRef.current.rotation.y = state.clock.elapsedTime * 0.002;
     }
   });
 
-  // Generate realistic cloud positions
+  // Generate fluffy cloud positions
   const cloudPositions = useMemo(() => {
     const positions: Array<{ pos: [number, number, number]; scale: number; seed: number }> = [];
-    const count = 30;
+    const count = 25;
     
     for (let i = 0; i < count; i++) {
       const angle = (i / count) * Math.PI * 2 + Math.random() * 0.5;
-      const radius = 40 + Math.random() * 100;
-      const height = 50 + Math.random() * 30;
+      const radius = 50 + Math.random() * 80;
+      const height = 60 + Math.random() * 25;
       
       positions.push({
         pos: [
@@ -30,7 +30,7 @@ export function SkyVoid() {
           height,
           Math.sin(angle) * radius,
         ],
-        scale: 0.8 + Math.random() * 1.5,
+        scale: 1.2 + Math.random() * 1.8,
         seed: Math.floor(Math.random() * 1000),
       });
     }
@@ -38,46 +38,92 @@ export function SkyVoid() {
     return positions;
   }, []);
 
+  // Generate trees
+  const trees = useMemo(() => {
+    const treePositions: Array<{ pos: [number, number, number]; height: number; radius: number }> = [];
+    
+    for (let i = 0; i < 40; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const distance = 25 + Math.random() * 80;
+      const x = Math.cos(angle) * distance;
+      const z = Math.sin(angle) * distance;
+      
+      // Avoid spawn area
+      if (Math.abs(x) < 8 && Math.abs(z - 8) < 8) continue;
+      
+      treePositions.push({
+        pos: [x, 0, z],
+        height: 4 + Math.random() * 6,
+        radius: 2 + Math.random() * 2,
+      });
+    }
+    
+    return treePositions;
+  }, []);
+
+  // Generate flowers
+  const flowers = useMemo(() => {
+    const flowerPositions: Array<{ pos: [number, number, number]; color: string }> = [];
+    const colors = ['#ff6b6b', '#ffd93d', '#6bcb77', '#4d96ff', '#ff8fd8', '#ffffff'];
+    
+    for (let i = 0; i < 80; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const distance = 5 + Math.random() * 60;
+      const x = Math.cos(angle) * distance;
+      const z = Math.sin(angle) * distance;
+      
+      // Avoid spawn area
+      if (Math.abs(x) < 5 && Math.abs(z - 8) < 5) continue;
+      
+      flowerPositions.push({
+        pos: [x, 0.15, z],
+        color: colors[Math.floor(Math.random() * colors.length)],
+      });
+    }
+    
+    return flowerPositions;
+  }, []);
+
   return (
     <>
-      {/* Realistic sky with proper sun position */}
+      {/* Bright, cheerful sky */}
       <Sky
         distance={450000}
-        sunPosition={[150, 60, 100]}
-        inclination={0.52}
+        sunPosition={[100, 80, 50]}
+        inclination={0.6}
         azimuth={0.25}
-        mieCoefficient={0.005}
-        mieDirectionalG={0.8}
-        rayleigh={0.8}
-        turbidity={8}
+        mieCoefficient={0.003}
+        mieDirectionalG={0.7}
+        rayleigh={0.5}
+        turbidity={4}
       />
 
-      {/* Stars for depth (visible in darker areas) */}
+      {/* Subtle stars for depth */}
       <Stars
-        radius={200}
-        depth={100}
-        count={3000}
-        factor={4}
-        saturation={0}
+        radius={300}
+        depth={80}
+        count={2000}
+        factor={3}
+        saturation={0.2}
         fade
-        speed={0.5}
+        speed={0.3}
       />
 
-      {/* Main cloud layer */}
+      {/* Main fluffy cloud layer */}
       <group ref={cloudsRef}>
-        <Clouds material={undefined} limit={500} range={250}>
+        <Clouds material={undefined} limit={400} range={200}>
           {cloudPositions.map((cloud, i) => (
             <Cloud
               key={i}
               seed={cloud.seed}
-              segments={25}
-              bounds={[10, 3, 10]}
-              volume={8}
+              segments={30}
+              bounds={[12, 4, 12]}
+              volume={10}
               color="#ffffff"
-              fade={120}
-              speed={0.08}
-              growth={3}
-              opacity={0.9}
+              fade={100}
+              speed={0.05}
+              growth={4}
+              opacity={0.95}
               position={cloud.pos}
               scale={cloud.scale}
             />
@@ -85,80 +131,96 @@ export function SkyVoid() {
         </Clouds>
       </group>
 
-      {/* Lower cloud layer for depth */}
-      <Clouds material={undefined} limit={200}>
+      {/* Secondary cloud layer */}
+      <Clouds material={undefined} limit={150}>
         <Cloud
           seed={42}
-          segments={40}
-          bounds={[20, 4, 20]}
-          volume={12}
-          color="#f8f8ff"
-          fade={100}
-          speed={0.04}
-          position={[40, 40, -60]}
-          opacity={0.85}
+          segments={35}
+          bounds={[25, 5, 25]}
+          volume={15}
+          color="#fff8f0"
+          fade={120}
+          speed={0.03}
+          position={[50, 70, -80]}
+          opacity={0.9}
         />
         <Cloud
           seed={123}
-          segments={35}
-          bounds={[18, 3, 18]}
-          volume={10}
-          color="#ffffff"
-          fade={90}
-          speed={0.06}
-          position={[-60, 45, 40]}
-          opacity={0.8}
-        />
-        <Cloud
-          seed={456}
-          segments={45}
-          bounds={[25, 5, 25]}
-          volume={15}
-          color="#f0f4ff"
-          fade={120}
-          speed={0.02}
-          position={[0, 55, -100]}
-          opacity={0.85}
-        />
-        <Cloud
-          seed={789}
           segments={30}
-          bounds={[15, 3, 15]}
-          volume={8}
-          color="#fff"
-          fade={80}
-          speed={0.05}
-          position={[-80, 48, -30]}
-          opacity={0.75}
+          bounds={[20, 4, 20]}
+          volume={12}
+          color="#ffffff"
+          fade={100}
+          speed={0.04}
+          position={[-70, 65, 50]}
+          opacity={0.85}
         />
       </Clouds>
 
-      {/* Ground plane for void effect */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.5, 0]} receiveShadow>
-        <planeGeometry args={[500, 500]} />
+      {/* Beautiful grass ground */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, 0]} receiveShadow>
+        <circleGeometry args={[150, 64]} />
         <meshStandardMaterial 
-          color="#1a472a" 
-          roughness={0.9}
-          metalness={0.1}
+          color="#4ade80" 
+          roughness={0.95}
+          metalness={0}
         />
       </mesh>
 
-      {/* Distant mountains/terrain silhouette */}
-      <mesh position={[0, 10, -150]} receiveShadow>
-        <coneGeometry args={[80, 40, 8]} />
-        <meshStandardMaterial color="#2d3748" roughness={1} />
-      </mesh>
-      <mesh position={[-100, 8, -120]} receiveShadow>
-        <coneGeometry args={[60, 30, 6]} />
-        <meshStandardMaterial color="#374151" roughness={1} />
-      </mesh>
-      <mesh position={[120, 12, -140]} receiveShadow>
-        <coneGeometry args={[70, 35, 7]} />
-        <meshStandardMaterial color="#1f2937" roughness={1} />
+      {/* Darker grass ring for depth */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, 0]} receiveShadow>
+        <ringGeometry args={[100, 200, 64]} />
+        <meshStandardMaterial 
+          color="#22c55e" 
+          roughness={1}
+          metalness={0}
+        />
       </mesh>
 
-      {/* Atmospheric fog - realistic distance fade */}
-      <fog attach="fog" args={['#a8c4e0', 60, 250]} />
+      {/* Trees */}
+      {trees.map((tree, i) => (
+        <group key={i} position={tree.pos}>
+          {/* Trunk */}
+          <mesh position={[0, tree.height / 2, 0]} castShadow>
+            <cylinderGeometry args={[0.3, 0.5, tree.height, 8]} />
+            <meshStandardMaterial color="#8B4513" roughness={0.9} />
+          </mesh>
+          {/* Leaves - layered for fullness */}
+          <mesh position={[0, tree.height + tree.radius * 0.3, 0]} castShadow>
+            <sphereGeometry args={[tree.radius, 8, 8]} />
+            <meshStandardMaterial color="#228B22" roughness={0.8} />
+          </mesh>
+          <mesh position={[0, tree.height + tree.radius * 0.8, 0]} castShadow>
+            <sphereGeometry args={[tree.radius * 0.7, 8, 8]} />
+            <meshStandardMaterial color="#2d8f2d" roughness={0.8} />
+          </mesh>
+        </group>
+      ))}
+
+      {/* Colorful flowers */}
+      {flowers.map((flower, i) => (
+        <mesh key={i} position={flower.pos} castShadow>
+          <sphereGeometry args={[0.15, 6, 6]} />
+          <meshStandardMaterial color={flower.color} roughness={0.5} emissive={flower.color} emissiveIntensity={0.1} />
+        </mesh>
+      ))}
+
+      {/* Distant hills for horizon */}
+      <mesh position={[0, 5, -120]} receiveShadow>
+        <sphereGeometry args={[50, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2]} />
+        <meshStandardMaterial color="#16a34a" roughness={1} />
+      </mesh>
+      <mesh position={[-80, 8, -100]} receiveShadow>
+        <sphereGeometry args={[40, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2]} />
+        <meshStandardMaterial color="#15803d" roughness={1} />
+      </mesh>
+      <mesh position={[100, 6, -110]} receiveShadow>
+        <sphereGeometry args={[45, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2]} />
+        <meshStandardMaterial color="#166534" roughness={1} />
+      </mesh>
+
+      {/* Soft atmospheric fog for depth */}
+      <fog attach="fog" args={['#87CEEB', 80, 300]} />
     </>
   );
 }
