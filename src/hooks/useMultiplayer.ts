@@ -171,19 +171,16 @@ export function useMultiplayer() {
             notifyStateChange();
             
           })
-          .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
-            // Only notify if we actually knew about this player
-            if (!knownPlayers.has(key)) return;
-            
-            // Get player info before removing
-            const leavingPlayer = sharedRemotePlayers.get(key);
+          .on('presence', { event: 'leave' }, ({ key }) => {
+            // Always remove from known players and shared state
             knownPlayers.delete(key);
             
-            const updated = new Map(sharedRemotePlayers);
-            updated.delete(key);
-            sharedRemotePlayers = updated;
-            notifyStateChange();
-            
+            if (sharedRemotePlayers.has(key)) {
+              const updated = new Map(sharedRemotePlayers);
+              updated.delete(key);
+              sharedRemotePlayers = updated;
+              notifyStateChange();
+            }
           })
           .subscribe(async (status) => {
             console.log(`[Multiplayer] Status: ${status}`);
