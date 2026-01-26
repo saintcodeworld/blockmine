@@ -86,71 +86,47 @@ interface BirdProps {
 
 function Bird({ startPosition, color, speed, radius, height }: BirdProps) {
   const groupRef = useRef<Group>(null);
-  const leftWingRef = useRef<Group>(null);
-  const rightWingRef = useRef<Group>(null);
   const offset = useMemo(() => Math.random() * Math.PI * 2, []);
+  const wingPhase = useRef(0);
 
-  useFrame((state) => {
-    if (!groupRef.current || !leftWingRef.current || !rightWingRef.current) return;
+  useFrame((state, delta) => {
+    if (!groupRef.current) return;
     
     const t = state.clock.elapsedTime * speed + offset;
+    wingPhase.current += delta * 8;
     
     // Soaring circular path
     groupRef.current.position.x = startPosition[0] + Math.sin(t) * radius;
     groupRef.current.position.y = height + Math.sin(t * 0.5) * 3;
     groupRef.current.position.z = startPosition[2] + Math.cos(t) * radius;
     
-    // Face direction of movement with slight banking
+    // Face direction of movement
     groupRef.current.rotation.y = t + Math.PI / 2;
-    groupRef.current.rotation.z = Math.sin(t) * 0.1;
-    
-    // Wing flapping - slower, more graceful
-    const wingAngle = Math.sin(state.clock.elapsedTime * 4) * 0.3;
-    leftWingRef.current.rotation.z = wingAngle + 0.1;
-    rightWingRef.current.rotation.z = -wingAngle - 0.1;
+    groupRef.current.rotation.z = Math.sin(t) * 0.15;
   });
 
+  const wingAngle = Math.sin(wingPhase.current) * 0.4;
+
   return (
-    <group ref={groupRef} position={startPosition}>
+    <group ref={groupRef} position={startPosition} scale={0.6}>
+      {/* Simple V-shaped bird silhouette */}
       {/* Body */}
-      <mesh rotation={[0, 0, Math.PI / 2]}>
-        <capsuleGeometry args={[0.15, 0.5, 4, 8]} />
-        <meshStandardMaterial color={color} />
-      </mesh>
-      
-      {/* Head */}
-      <mesh position={[0.4, 0.05, 0]}>
-        <sphereGeometry args={[0.12, 8, 8]} />
-        <meshStandardMaterial color={color} />
-      </mesh>
-      
-      {/* Beak */}
-      <mesh position={[0.55, 0, 0]} rotation={[0, 0, -Math.PI / 2]}>
-        <coneGeometry args={[0.05, 0.15, 4]} />
-        <meshStandardMaterial color="#ffa500" />
-      </mesh>
-      
-      {/* Tail */}
-      <mesh position={[-0.45, 0, 0]} rotation={[0, 0, -0.2]}>
-        <boxGeometry args={[0.3, 0.02, 0.2]} />
+      <mesh>
+        <sphereGeometry args={[0.15, 6, 6]} />
         <meshStandardMaterial color={color} />
       </mesh>
       
       {/* Left wing */}
-      <group ref={leftWingRef} position={[0, 0.1, 0.15]}>
-        <mesh position={[0, 0, 0.25]} rotation={[0.1, 0, 0]}>
-          <boxGeometry args={[0.4, 0.02, 0.5]} />
-          <meshStandardMaterial color={color} />
-        </mesh>
-      </group>
+      <mesh position={[0, 0.05, 0.2]} rotation={[wingAngle, 0, 0.3]}>
+        <boxGeometry args={[0.08, 0.02, 0.4]} />
+        <meshStandardMaterial color={color} />
+      </mesh>
       
       {/* Right wing */}
-      <group ref={rightWingRef} position={[0, 0.1, -0.15]}>
-        <mesh position={[0, 0, -0.25]} rotation={[-0.1, 0, 0]}>
-          <boxGeometry args={[0.4, 0.02, 0.5]} />
-          <meshStandardMaterial color={color} />
-        </mesh>
-      </group>
+      <mesh position={[0, 0.05, -0.2]} rotation={[-wingAngle, 0, -0.3]}>
+        <boxGeometry args={[0.08, 0.02, 0.4]} />
+        <meshStandardMaterial color={color} />
+      </mesh>
     </group>
   );
 }
