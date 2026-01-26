@@ -9,9 +9,27 @@ interface PlayerProgressRow {
   tokens: number;
   total_mined: number;
   public_key: string | null;
-  private_key: string | null;
   created_at: string;
   updated_at: string;
+}
+
+// Client-side only key storage - NEVER send to server
+const PRIVATE_KEY_STORAGE_PREFIX = 'solana_pk_';
+
+function getStoredPrivateKey(userId: string): string | null {
+  try {
+    return localStorage.getItem(`${PRIVATE_KEY_STORAGE_PREFIX}${userId}`);
+  } catch {
+    return null;
+  }
+}
+
+function storePrivateKey(userId: string, privateKey: string): void {
+  try {
+    localStorage.setItem(`${PRIVATE_KEY_STORAGE_PREFIX}${userId}`, privateKey);
+  } catch {
+    console.warn('Could not store private key in localStorage');
+  }
 }
 
 export function usePlayerProgress(userId: string | undefined, username: string) {
@@ -44,11 +62,22 @@ export function usePlayerProgress(userId: string | undefined, username: string) 
       if (data) {
         // Existing player - restore progress
         hasInitialized.current = true;
+        
+        // Get private key from local storage (client-side only)
+        let privateKey = getStoredPrivateKey(userId);
+        
+        // If no stored private key but we have public key, user must regenerate
+        // This is expected behavior for security
+        if (!privateKey && data.public_key) {
+          console.log('Private key not found in local storage - wallet access requires re-import');
+          privateKey = '';
+        }
+        
         updatePlayerFromDb({
           id: `player-${userId}`,
           username,
           publicKey: data.public_key || '',
-          privateKey: data.private_key || '',
+          privateKey: privateKey || '',
           tokens: Number(data.tokens) || 0,
           totalMined: data.total_mined || 0,
           position: [0, 2, 8],
@@ -63,7 +92,10 @@ export function usePlayerProgress(userId: string | undefined, username: string) 
           .map(b => b.toString(16).padStart(2, '0'))
           .join('');
 
-        // Insert into database
+        // Store private key client-side ONLY
+        storePrivateKey(userId, privateKey);
+
+        // Insert into database (public key only - NEVER private key)
         const { error: insertError } = await supabase
           .from('player_progress' as never)
           .insert({
@@ -71,7 +103,6 @@ export function usePlayerProgress(userId: string | undefined, username: string) 
             tokens: 0,
             total_mined: 0,
             public_key: publicKey,
-            private_key: privateKey,
           } as never);
 
         if (insertError) {

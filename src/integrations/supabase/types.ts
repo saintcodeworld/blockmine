@@ -18,7 +18,6 @@ export type Database = {
         Row: {
           created_at: string
           id: string
-          private_key: string | null
           public_key: string | null
           tokens: number
           total_mined: number
@@ -28,7 +27,6 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
-          private_key?: string | null
           public_key?: string | null
           tokens?: number
           total_mined?: number
@@ -38,7 +36,6 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
-          private_key?: string | null
           public_key?: string | null
           tokens?: number
           total_mined?: number
