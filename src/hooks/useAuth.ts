@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { getSupabase } from '@/lib/supabase';
 
@@ -6,38 +6,43 @@ export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const initialized = useRef(false);
 
   useEffect(() => {
-    const supabase = getSupabase();
-    if (!supabase) {
-      setLoading(false);
-      return;
-    }
+    // Prevent double initialization in StrictMode
+    if (initialized.current) return;
+    initialized.current = true;
 
-    // Set up auth state listener FIRST
+    const supabase = getSupabase();
+    
+    // Set up auth state listener FIRST (synchronous state updates only)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
+      (event, currentSession) => {
+        // Only synchronous state updates here - no async calls
+        setSession(currentSession);
+        setUser(currentSession?.user ?? null);
         setLoading(false);
       }
     );
 
     // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
+    supabase.auth.getSession().then(({ data: { session: existingSession } }) => {
+      setSession(existingSession);
+      setUser(existingSession?.user ?? null);
+      setLoading(false);
+    }).catch((error) => {
+      console.error('Error getting session:', error);
       setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signOut = async () => {
     const supabase = getSupabase();
-    if (supabase) {
-      await supabase.auth.signOut();
-    }
+    await supabase.auth.signOut();
   };
 
   const getUsername = (): string => {
