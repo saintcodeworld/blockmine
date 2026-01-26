@@ -6,6 +6,7 @@ import { Keypair } from '@solana/web3.js';
 interface PlayerProgressRow {
   id: string;
   user_id: string;
+  username: string | null;
   tokens: number;
   total_mined: number;
   public_key: string | null;
@@ -100,6 +101,7 @@ export function usePlayerProgress(userId: string | undefined, username: string) 
           .from('player_progress' as never)
           .insert({
             user_id: userId,
+            username: username,
             tokens: 0,
             total_mined: 0,
             public_key: publicKey,
