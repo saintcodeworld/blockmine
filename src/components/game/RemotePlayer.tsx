@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, useMemo } from 'react';
+import { useRef, useState, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Group, Vector3 } from 'three';
 import { Html } from '@react-three/drei';
@@ -12,18 +12,15 @@ interface RemotePlayerProps {
 export function RemotePlayer({ player }: RemotePlayerProps) {
   const groupRef = useRef<Group>(null);
   
-  // Use refs for smooth interpolation targets
+  // Use refs for smooth interpolation - avoid state updates in frame loop
   const targetPosition = useRef(new Vector3(...player.position));
   const targetRotation = useRef(player.rotation);
+  const velocity = useRef(new Vector3(...(player.velocity || [0, 0, 0])));
   const lastFramePosition = useRef(new Vector3(...player.position));
-  const [isMoving, setIsMoving] = useState(false);
+  const lastPlayerUpdate = useRef(player.lastUpdate || Date.now());
+  const isMovingRef = useRef(false);
   const movementThreshold = useRef(0);
-
-  // Update targets when player data changes
-  useEffect(() => {
-    targetPosition.current.set(player.position[0], player.position[1], player.position[2]);
-    targetRotation.current = player.rotation;
-  }, [player.position[0], player.position[1], player.position[2], player.rotation]);
+  const [isMoving, setIsMoving] = useState(false);
 
   // Initial position calculation
   const initialPosition = useMemo(() => {
@@ -33,16 +30,44 @@ export function RemotePlayer({ player }: RemotePlayerProps) {
   useFrame((_, delta) => {
     if (!groupRef.current) return;
 
-    const lerpFactor = Math.min(1, delta * 8); // Smoother, frame-rate independent
+    // Check for new updates from network
+    if (player.lastUpdate !== lastPlayerUpdate.current) {
+      lastPlayerUpdate.current = player.lastUpdate;
+      targetPosition.current.set(player.position[0], player.position[1], player.position[2]);
+      targetRotation.current = player.rotation;
+      velocity.current.set(
+        player.velocity?.[0] || 0,
+        player.velocity?.[1] || 0,
+        player.velocity?.[2] || 0
+      );
+    }
 
-    // Smooth position interpolation
-    const targetX = targetPosition.current.x;
-    const targetY = targetPosition.current.y - 0.5; // Offset for model feet
-    const targetZ = targetPosition.current.z;
+    // Apply velocity-based prediction for smoother movement between updates
+    const timeSinceUpdate = (Date.now() - lastPlayerUpdate.current) / 1000;
+    const maxPrediction = 0.15; // Cap prediction to 150ms
+    const predictionTime = Math.min(timeSinceUpdate, maxPrediction);
+    
+    const predictedX = targetPosition.current.x + velocity.current.x * predictionTime;
+    const predictedY = targetPosition.current.y + velocity.current.y * predictionTime;
+    const predictedZ = targetPosition.current.z + velocity.current.z * predictionTime;
 
-    groupRef.current.position.x += (targetX - groupRef.current.position.x) * lerpFactor;
+    // Adaptive lerp - faster when far, slower when close
+    const distanceToTarget = Math.sqrt(
+      Math.pow(predictedX - groupRef.current.position.x, 2) +
+      Math.pow(predictedZ - groupRef.current.position.z, 2)
+    );
+    
+    // Use exponential smoothing for ultra-smooth interpolation
+    const baseLerp = 12;
+    const distanceBoost = Math.min(distanceToTarget * 2, 8); // Speed up when far behind
+    const lerpFactor = Math.min(1, delta * (baseLerp + distanceBoost));
+
+    // Smooth position interpolation with prediction
+    const targetY = predictedY - 0.5; // Offset for model feet
+    
+    groupRef.current.position.x += (predictedX - groupRef.current.position.x) * lerpFactor;
     groupRef.current.position.y += (targetY - groupRef.current.position.y) * lerpFactor;
-    groupRef.current.position.z += (targetZ - groupRef.current.position.z) * lerpFactor;
+    groupRef.current.position.z += (predictedZ - groupRef.current.position.z) * lerpFactor;
 
     // Smooth rotation interpolation with wrapping
     const targetRot = targetRotation.current + Math.PI;
@@ -59,16 +84,22 @@ export function RemotePlayer({ player }: RemotePlayerProps) {
     );
     
     // Use hysteresis: higher threshold to stop, lower to start
-    if (isMoving) {
+    const wasMoving = isMovingRef.current;
+    if (wasMoving) {
       movementThreshold.current = Math.max(0, movementThreshold.current - delta);
-      if (moveDist < 0.001 && movementThreshold.current <= 0) {
-        setIsMoving(false);
+      if (moveDist < 0.0005 && movementThreshold.current <= 0) {
+        isMovingRef.current = false;
       }
     } else {
-      if (moveDist > 0.01) {
-        setIsMoving(true);
-        movementThreshold.current = 0.1; // Keep moving for at least 0.1 seconds
+      if (moveDist > 0.005) {
+        isMovingRef.current = true;
+        movementThreshold.current = 0.15; // Keep moving animation for at least 150ms
       }
+    }
+    
+    // Only update React state when movement state actually changes
+    if (wasMoving !== isMovingRef.current) {
+      setIsMoving(isMovingRef.current);
     }
     
     lastFramePosition.current.set(currentPos.x, currentPos.y, currentPos.z);

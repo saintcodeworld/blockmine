@@ -8,8 +8,10 @@ export interface RemotePlayer {
   username: string;
   position: [number, number, number];
   rotation: number;
+  velocity: [number, number, number]; // For prediction
   isMining: boolean;
   color: string;
+  lastUpdate: number; // Timestamp for interpolation
 }
 
 const PLAYER_COLORS = [
@@ -18,7 +20,7 @@ const PLAYER_COLORS = [
   '#84cc16', '#22d3ee', '#e879f9', '#facc15', '#fb923c',
 ];
 
-const UPDATE_INTERVAL = 50; // Faster updates for smoother movement
+const UPDATE_INTERVAL = 33; // ~30fps for smoother sync
 
 // Global singleton to prevent duplicate channels
 let globalChannel: any = null;
@@ -45,9 +47,9 @@ export function useMultiplayer() {
   
   const lastUpdateTime = useRef(0);
   const lastMiningState = useRef(false);
+  const lastPosition = useRef<[number, number, number] | null>(null);
   const pendingUpdate = useRef<{ position: [number, number, number]; rotation: number } | null>(null);
   const playerColorRef = useRef(PLAYER_COLORS[Math.floor(Math.random() * PLAYER_COLORS.length)]);
-
   const presenceKey = user?.id || player?.id || '';
 
   // Subscribe to shared state changes
@@ -123,18 +125,37 @@ export function useMultiplayer() {
           .on('presence', { event: 'sync' }, () => {
             const presenceState = gameChannel.presenceState();
             const newPlayers = new Map<string, RemotePlayer>();
+            const now = Date.now();
             
             Object.entries(presenceState).forEach(([key, presences]) => {
               if (key === presenceKey || !presences?.length) return;
               const p = presences[0] as any;
+              const existingPlayer = sharedRemotePlayers.get(key);
+              const newPos: [number, number, number] = p.position || [0, 1.5, 0];
+              
+              // Calculate velocity from position delta for prediction
+              let velocity: [number, number, number] = [0, 0, 0];
+              if (existingPlayer && p.timestamp) {
+                const dt = (now - existingPlayer.lastUpdate) / 1000;
+                if (dt > 0 && dt < 1) {
+                  velocity = [
+                    (newPos[0] - existingPlayer.position[0]) / dt,
+                    (newPos[1] - existingPlayer.position[1]) / dt,
+                    (newPos[2] - existingPlayer.position[2]) / dt,
+                  ];
+                }
+              }
+              
               newPlayers.set(key, {
                 odocument: key,
                 odocumentId: p.userId || key,
                 username: p.username || 'Player',
-                position: p.position || [0, 1.5, 0],
+                position: newPos,
                 rotation: p.rotation || 0,
+                velocity,
                 isMining: Boolean(p.isMining),
                 color: p.color || PLAYER_COLORS[0],
+                lastUpdate: now,
               });
             });
             
@@ -164,8 +185,10 @@ export function useMultiplayer() {
               username: playerUsername,
               position: p.position || [0, 1.5, 0],
               rotation: p.rotation || 0,
+              velocity: [0, 0, 0],
               isMining: Boolean(p.isMining),
               color: playerColor,
+              lastUpdate: Date.now(),
             });
             sharedRemotePlayers = updated;
             notifyStateChange();
@@ -261,14 +284,31 @@ export function useMultiplayer() {
       const now = Date.now();
       pendingUpdate.current = { position, rotation };
 
+      // Calculate velocity for remote interpolation
+      let velocity: [number, number, number] = [0, 0, 0];
+      if (lastPosition.current && lastUpdateTime.current > 0) {
+        const dt = (now - lastUpdateTime.current) / 1000;
+        if (dt > 0 && dt < 1) {
+          velocity = [
+            (position[0] - lastPosition.current[0]) / dt,
+            (position[1] - lastPosition.current[1]) / dt,
+            (position[2] - lastPosition.current[2]) / dt,
+          ];
+        }
+      }
+
       if (now - lastUpdateTime.current >= UPDATE_INTERVAL) {
         lastUpdateTime.current = now;
+        lastPosition.current = [...position];
+        
         try {
           await globalChannel.track({
             userId: user?.id || player.id,
             username: player.username,
             position,
             rotation,
+            velocity,
+            timestamp: now,
             isMining,
             color: playerColorRef.current,
           });
