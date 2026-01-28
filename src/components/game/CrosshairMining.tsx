@@ -1,22 +1,40 @@
 import { useRef, useEffect } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
-import { Raycaster, Vector2, Vector3 } from 'three';
+import { Raycaster, Vector2 } from 'three';
 import { useGameStore } from '@/store/gameStore';
+import { useGameAudio } from '@/hooks/useGameAudio';
 
 const MINING_REACH = 5;
+const MINING_HIT_INTERVAL = 200; // Play hit sound every 200ms while mining
 
 // Component to handle crosshair-based mining with raycasting
 export function CrosshairMining() {
   const { camera, scene } = useThree();
   const raycaster = useRef(new Raycaster());
   const isMouseDown = useRef(false);
+  const lastMiningHitTime = useRef(0);
+  const prevCubeCount = useRef(0);
   
   const cubes = useGameStore((state) => state.cubes);
   const startMining = useGameStore((state) => state.startMining);
   const stopMining = useGameStore((state) => state.stopMining);
   const setSelectedCube = useGameStore((state) => state.setSelectedCube);
   const isMining = useGameStore((state) => state.isMining);
+  const miningCubeId = useGameStore((state) => state.miningCubeId);
   const player = useGameStore((state) => state.player);
+
+  const { playMiningHit, playBlockBreak, playTokenCollect } = useGameAudio();
+
+  // Track cube destruction for sound effects
+  useEffect(() => {
+    if (prevCubeCount.current > 0 && cubes.length < prevCubeCount.current) {
+      // A cube was destroyed - find which type it was
+      // Play break sound (default to stone if we can't determine type)
+      playBlockBreak('stone');
+      playTokenCollect();
+    }
+    prevCubeCount.current = cubes.length;
+  }, [cubes.length, playBlockBreak, playTokenCollect]);
 
   useEffect(() => {
     const handleMouseDown = (e: MouseEvent) => {
@@ -98,6 +116,15 @@ export function CrosshairMining() {
       }
     } else {
       setSelectedCube(null);
+    }
+
+    // Play mining hit sounds while mining
+    if (isMining && miningCubeId) {
+      const now = Date.now();
+      if (now - lastMiningHitTime.current > MINING_HIT_INTERVAL) {
+        playMiningHit();
+        lastMiningHitTime.current = now;
+      }
     }
   });
 
