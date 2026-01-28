@@ -3,6 +3,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { Vector3, Box3 } from 'three';
 import { useGameStore } from '@/store/gameStore';
 import { RemotePlayer } from '@/hooks/useMultiplayer';
+import { useGameAudio } from '@/hooks/useGameAudio';
 
 interface FirstPersonControllerProps {
   onPositionChange: (position: [number, number, number], rotation: number) => void;
@@ -27,11 +28,17 @@ const CUBE_SIZE = 1.8;
 // Remote player collision radius
 const PLAYER_COLLISION_RADIUS = 0.6;
 
+// Footstep interval based on speed
+const FOOTSTEP_INTERVAL_WALK = 350;
+const FOOTSTEP_INTERVAL_SPRINT = 220;
+
 export function FirstPersonController({ onPositionChange, remotePlayers = [] }: FirstPersonControllerProps) {
   const { camera } = useThree();
   const updateMining = useGameStore((state) => state.updateMining);
   const checkRespawns = useGameStore((state) => state.checkRespawns);
   const cubes = useGameStore((state) => state.cubes);
+  
+  const { playFootstep } = useGameAudio();
   
   // Store cubes and remote players in refs to avoid stale closure issues
   const cubesRef = useRef(cubes);
@@ -48,6 +55,10 @@ export function FirstPersonController({ onPositionChange, remotePlayers = [] }: 
   const velocity = useRef(new Vector3());
   const verticalVelocity = useRef(0);
   const isGrounded = useRef(true);
+  
+  // Audio tracking
+  const lastFootstepTime = useRef(0);
+  const walkDistance = useRef(0);
   
   const keys = useRef({
     forward: false,
@@ -239,13 +250,16 @@ export function FirstPersonController({ onPositionChange, remotePlayers = [] }: 
     // Movement
     const moveDirection = new Vector3();
     const speed = keys.current.sprint ? MOVE_SPEED * SPRINT_MULTIPLIER : MOVE_SPEED;
+    const isSprinting = keys.current.sprint;
 
     if (keys.current.forward) moveDirection.z -= 1;
     if (keys.current.backward) moveDirection.z += 1;
     if (keys.current.left) moveDirection.x -= 1;
     if (keys.current.right) moveDirection.x += 1;
 
-    if (moveDirection.length() > 0) {
+    const isMoving = moveDirection.length() > 0;
+    
+    if (isMoving) {
       moveDirection.normalize();
     }
 
@@ -253,6 +267,17 @@ export function FirstPersonController({ onPositionChange, remotePlayers = [] }: 
 
     velocity.current.x += (moveDirection.x * speed - velocity.current.x) * 0.2;
     velocity.current.z += (moveDirection.z * speed - velocity.current.z) * 0.2;
+
+    // Footstep audio
+    if (isMoving && isGrounded.current) {
+      const now = Date.now();
+      const interval = isSprinting ? FOOTSTEP_INTERVAL_SPRINT : FOOTSTEP_INTERVAL_WALK;
+      
+      if (now - lastFootstepTime.current > interval) {
+        playFootstep();
+        lastFootstepTime.current = now;
+      }
+    }
 
     // Jump
     if (keys.current.jump && isGrounded.current) {
