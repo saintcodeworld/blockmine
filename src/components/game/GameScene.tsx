@@ -9,6 +9,7 @@ import { SkyVoid } from './SkyVoid';
 import { CrosshairMining } from './CrosshairMining';
 import { MiningParticles } from './MiningParticles';
 import { Wildlife } from './Wildlife';
+import { DynamicLighting } from './DynamicLighting';
 import { useMultiplayer } from '@/hooks/useMultiplayer';
 
 function Scene() {
@@ -36,31 +37,8 @@ function Scene() {
       {/* Animated wildlife */}
       <Wildlife />
       
-      {/* Warm, bright outdoor lighting */}
-      <ambientLight intensity={0.6} color="#fffaf0" />
-      <directionalLight 
-        position={[100, 150, 80]} 
-        intensity={2.5} 
-        castShadow 
-        shadow-mapSize={[4096, 4096]}
-        shadow-camera-far={400}
-        shadow-camera-left={-120}
-        shadow-camera-right={120}
-        shadow-camera-top={120}
-        shadow-camera-bottom={-120}
-        shadow-bias={-0.0001}
-        color="#fff8dc"
-      />
-      {/* Soft fill light */}
-      <directionalLight 
-        position={[-60, 50, -60]} 
-        intensity={0.5} 
-        color="#e0f0ff"
-      />
-      {/* Warm ground bounce */}
-      <hemisphereLight args={['#87CEEB', '#4ade80', 0.7]} />
-      {/* Subtle rim light */}
-      <pointLight position={[0, 50, 0]} intensity={0.3} color="#fff5e6" />
+      {/* Dynamic lighting based on time of day */}
+      <DynamicLighting />
       
       {/* First-person player controller with collision */}
       <FirstPersonController 

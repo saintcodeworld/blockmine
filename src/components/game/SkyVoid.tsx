@@ -1,11 +1,13 @@
 import { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Cloud, Clouds, Sky, Stars } from '@react-three/drei';
-import { Group } from 'three';
+import { Cloud, Clouds, Stars } from '@react-three/drei';
+import { Group, Color } from 'three';
+import { useDayNightCycle } from '@/hooks/useDayNightCycle';
 
-// Beautiful family-friendly sky with warm daylight atmosphere
+// Beautiful sky with day/night cycle based on local time
 export function SkyVoid() {
   const cloudsRef = useRef<Group>(null);
+  const timeOfDay = useDayNightCycle();
 
   // Slowly rotate clouds for a dynamic feel
   useFrame((state) => {
@@ -84,30 +86,76 @@ export function SkyVoid() {
     return flowerPositions;
   }, []);
 
+  // Cloud color based on time of day
+  const cloudColor = useMemo(() => {
+    switch (timeOfDay.phase) {
+      case 'dawn': return '#ffb3a7';
+      case 'dusk': return '#ff9999';
+      case 'night': return '#4a5568';
+      default: return '#ffffff';
+    }
+  }, [timeOfDay.phase]);
+
+  // Grass color darkens at night
+  const grassColor = useMemo(() => {
+    const dayColor = new Color('#4ade80');
+    const nightColor = new Color('#1a4d30');
+    const t = timeOfDay.phase === 'night' ? 1 : timeOfDay.phase === 'dusk' ? 0.5 : 0;
+    return dayColor.lerp(nightColor, t);
+  }, [timeOfDay.phase]);
+
+  const grassRingColor = useMemo(() => {
+    const dayColor = new Color('#22c55e');
+    const nightColor = new Color('#134d2e');
+    const t = timeOfDay.phase === 'night' ? 1 : timeOfDay.phase === 'dusk' ? 0.5 : 0;
+    return dayColor.lerp(nightColor, t);
+  }, [timeOfDay.phase]);
+
+  // Hill colors
+  const hillColors = useMemo(() => {
+    const t = timeOfDay.phase === 'night' ? 0.6 : timeOfDay.phase === 'dusk' ? 0.3 : 0;
+    return [
+      new Color('#16a34a').lerp(new Color('#0a3d1f'), t),
+      new Color('#15803d').lerp(new Color('#093019'), t),
+      new Color('#166534').lerp(new Color('#082515'), t),
+    ];
+  }, [timeOfDay.phase]);
+
   return (
     <>
-      {/* Bright, cheerful sky */}
-      <Sky
-        distance={450000}
-        sunPosition={[100, 80, 50]}
-        inclination={0.6}
-        azimuth={0.25}
-        mieCoefficient={0.003}
-        mieDirectionalG={0.7}
-        rayleigh={0.5}
-        turbidity={4}
-      />
+      {/* Dynamic sky gradient background */}
+      <color attach="background" args={[timeOfDay.skyColor]} />
 
-      {/* Subtle stars for depth */}
+      {/* Stars - visible at night and dusk */}
       <Stars
         radius={300}
         depth={80}
-        count={2000}
-        factor={3}
-        saturation={0.2}
+        count={3000}
+        factor={4}
+        saturation={0.3}
         fade
-        speed={0.3}
+        speed={0.2}
       />
+
+      {/* Moon at night */}
+      {(timeOfDay.phase === 'night' || timeOfDay.phase === 'dusk') && (
+        <mesh position={[-80, 100, -50]}>
+          <sphereGeometry args={[8, 32, 32]} />
+          <meshBasicMaterial color="#fffacd" />
+        </mesh>
+      )}
+
+      {/* Sun glow during dawn/day/dusk */}
+      {timeOfDay.phase !== 'night' && (
+        <mesh position={timeOfDay.sunPosition}>
+          <sphereGeometry args={[12, 32, 32]} />
+          <meshBasicMaterial 
+            color={timeOfDay.phase === 'dawn' ? '#ffdd99' : timeOfDay.phase === 'dusk' ? '#ff6b4a' : '#fffde7'} 
+            transparent 
+            opacity={0.9}
+          />
+        </mesh>
+      )}
 
       {/* Main fluffy cloud layer */}
       <group ref={cloudsRef}>
@@ -119,11 +167,11 @@ export function SkyVoid() {
               segments={30}
               bounds={[12, 4, 12]}
               volume={10}
-              color="#ffffff"
+              color={cloudColor}
               fade={100}
               speed={0.05}
               growth={4}
-              opacity={0.95}
+              opacity={timeOfDay.phase === 'night' ? 0.4 : 0.95}
               position={cloud.pos}
               scale={cloud.scale}
             />
@@ -138,22 +186,22 @@ export function SkyVoid() {
           segments={35}
           bounds={[25, 5, 25]}
           volume={15}
-          color="#fff8f0"
+          color={cloudColor}
           fade={120}
           speed={0.03}
           position={[50, 70, -80]}
-          opacity={0.9}
+          opacity={timeOfDay.phase === 'night' ? 0.3 : 0.9}
         />
         <Cloud
           seed={123}
           segments={30}
           bounds={[20, 4, 20]}
           volume={12}
-          color="#ffffff"
+          color={cloudColor}
           fade={100}
           speed={0.04}
           position={[-70, 65, 50]}
-          opacity={0.85}
+          opacity={timeOfDay.phase === 'night' ? 0.3 : 0.85}
         />
       </Clouds>
 
@@ -161,7 +209,7 @@ export function SkyVoid() {
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, 0]} receiveShadow>
         <circleGeometry args={[150, 64]} />
         <meshStandardMaterial 
-          color="#4ade80" 
+          color={grassColor} 
           roughness={0.95}
           metalness={0}
         />
@@ -171,7 +219,7 @@ export function SkyVoid() {
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, 0]} receiveShadow>
         <ringGeometry args={[100, 200, 64]} />
         <meshStandardMaterial 
-          color="#22c55e" 
+          color={grassRingColor} 
           roughness={1}
           metalness={0}
         />
@@ -188,39 +236,50 @@ export function SkyVoid() {
           {/* Leaves - layered for fullness */}
           <mesh position={[0, tree.height + tree.radius * 0.3, 0]} castShadow>
             <sphereGeometry args={[tree.radius, 8, 8]} />
-            <meshStandardMaterial color="#228B22" roughness={0.8} />
+            <meshStandardMaterial 
+              color={timeOfDay.phase === 'night' ? '#0f3d1a' : '#228B22'} 
+              roughness={0.8} 
+            />
           </mesh>
           <mesh position={[0, tree.height + tree.radius * 0.8, 0]} castShadow>
             <sphereGeometry args={[tree.radius * 0.7, 8, 8]} />
-            <meshStandardMaterial color="#2d8f2d" roughness={0.8} />
+            <meshStandardMaterial 
+              color={timeOfDay.phase === 'night' ? '#134d22' : '#2d8f2d'} 
+              roughness={0.8} 
+            />
           </mesh>
         </group>
       ))}
 
-      {/* Colorful flowers */}
+      {/* Colorful flowers - glow slightly at night */}
       {flowers.map((flower, i) => (
         <mesh key={i} position={flower.pos} castShadow>
           <sphereGeometry args={[0.15, 6, 6]} />
-          <meshStandardMaterial color={flower.color} roughness={0.5} emissive={flower.color} emissiveIntensity={0.1} />
+          <meshStandardMaterial 
+            color={flower.color} 
+            roughness={0.5} 
+            emissive={flower.color} 
+            emissiveIntensity={timeOfDay.phase === 'night' ? 0.3 : 0.1} 
+          />
         </mesh>
       ))}
 
       {/* Distant hills for horizon */}
       <mesh position={[0, 5, -120]} receiveShadow>
         <sphereGeometry args={[50, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2]} />
-        <meshStandardMaterial color="#16a34a" roughness={1} />
+        <meshStandardMaterial color={hillColors[0]} roughness={1} />
       </mesh>
       <mesh position={[-80, 8, -100]} receiveShadow>
         <sphereGeometry args={[40, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2]} />
-        <meshStandardMaterial color="#15803d" roughness={1} />
+        <meshStandardMaterial color={hillColors[1]} roughness={1} />
       </mesh>
       <mesh position={[100, 6, -110]} receiveShadow>
         <sphereGeometry args={[45, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2]} />
-        <meshStandardMaterial color="#166534" roughness={1} />
+        <meshStandardMaterial color={hillColors[2]} roughness={1} />
       </mesh>
 
       {/* Soft atmospheric fog for depth */}
-      <fog attach="fog" args={['#87CEEB', 80, 300]} />
+      <fog attach="fog" args={[timeOfDay.fogColor, 80, 300]} />
     </>
   );
 }
