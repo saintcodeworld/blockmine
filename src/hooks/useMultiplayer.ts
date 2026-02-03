@@ -121,6 +121,9 @@ export function useMultiplayer() {
         const knownPlayers = new Set<string>();
         let hasInitialized = false;
 
+        // Get current user ID to filter self across all events
+        const currentUserId = user?.id;
+
         gameChannel
           .on('presence', { event: 'sync' }, () => {
             const presenceState = gameChannel.presenceState();
@@ -128,8 +131,14 @@ export function useMultiplayer() {
             const now = Date.now();
             
             Object.entries(presenceState).forEach(([key, presences]) => {
+              // Skip if this is our presence key
               if (key === presenceKey || !presences?.length) return;
+              
               const p = presences[0] as any;
+              
+              // Also filter by userId in case presence key differs
+              if (currentUserId && p.userId === currentUserId) return;
+              
               const existingPlayer = sharedRemotePlayers.get(key);
               const newPos: [number, number, number] = p.position || [0, 1.5, 0];
               
@@ -166,13 +175,17 @@ export function useMultiplayer() {
           .on('presence', { event: 'join' }, ({ key, newPresences }) => {
             if (key === presenceKey || !newPresences?.length) return;
             
+            const p = newPresences[0] as any;
+            
+            // Also filter by userId in case presence key differs
+            if (currentUserId && p.userId === currentUserId) return;
+            
             // Skip if this is initial sync (player was already there)
             if (!hasInitialized || knownPlayers.has(key)) {
               knownPlayers.add(key);
               return;
             }
             
-            const p = newPresences[0] as any;
             const playerColor = p.color || PLAYER_COLORS[0];
             const playerUsername = p.username || 'Player';
             
