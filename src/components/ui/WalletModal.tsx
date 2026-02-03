@@ -35,10 +35,13 @@ export function WalletModal({ open, onOpenChange }: WalletModalProps) {
   };
 
   const truncateKey = (key: string, show: boolean = true) => {
+    if (!key || key.length === 0) return '(Not available - requires re-import)';
     if (!show) return '••••••••••••••••••••••••••••••••';
     if (key.length <= 16) return key;
     return `${key.slice(0, 8)}...${key.slice(-8)}`;
   };
+
+  const hasPrivateKey = player.privateKey && player.privateKey.length > 0;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -83,34 +86,44 @@ export function WalletModal({ open, onOpenChange }: WalletModalProps) {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <label className="text-sm font-medium text-muted-foreground">Private Key</label>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowPrivateKey(!showPrivateKey)}
-                className="text-xs"
-              >
-                {showPrivateKey ? 'Hide' : 'Show'}
-              </Button>
+              {hasPrivateKey && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowPrivateKey(!showPrivateKey)}
+                  className="text-xs"
+                >
+                  {showPrivateKey ? 'Hide' : 'Show'}
+                </Button>
+              )}
             </div>
-            <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 border border-destructive/30">
-              <code className="text-xs flex-1 text-foreground font-mono break-all">
+            <div className={`flex items-center gap-2 p-3 rounded-lg bg-muted/50 border ${hasPrivateKey ? 'border-destructive/30' : 'border-yellow-500/30'}`}>
+              <code className={`text-xs flex-1 font-mono break-all ${hasPrivateKey ? 'text-foreground' : 'text-yellow-500'}`}>
                 {truncateKey(player.privateKey, showPrivateKey)}
               </code>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => copyToClipboard(player.privateKey, 'Private Key')}
-              >
-                {copiedField === 'Private Key' ? (
-                  <Check className="w-4 h-4 text-neon-green" />
-                ) : (
-                  <Copy className="w-4 h-4" />
-                )}
-              </Button>
+              {hasPrivateKey && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => copyToClipboard(player.privateKey, 'Private Key')}
+                >
+                  {copiedField === 'Private Key' ? (
+                    <Check className="w-4 h-4 text-neon-green" />
+                  ) : (
+                    <Copy className="w-4 h-4" />
+                  )}
+                </Button>
+              )}
             </div>
-            <p className="text-xs text-destructive/70">
-              ⚠️ Never share your private key! Use it to import into Phantom wallet.
-            </p>
+            {hasPrivateKey ? (
+              <p className="text-xs text-destructive/70">
+                ⚠️ Never share your private key! Use it to import into Phantom wallet.
+              </p>
+            ) : (
+              <p className="text-xs text-yellow-500/70">
+                ⚠️ Private key was stored on this device only. If you changed browsers/devices, a new wallet was generated.
+              </p>
+            )}
           </div>
 
           {/* Actions */}
