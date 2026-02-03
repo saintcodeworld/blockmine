@@ -19,7 +19,7 @@ export function GameHUD({ isPointerLocked, isFullscreen = false }: GameHUDProps)
   const MINING_TIME = useGameStore((state) => state.MINING_TIME);
   const selectedCubeId = useGameStore((state) => state.selectedCubeId);
   const cubes = useGameStore((state) => state.cubes);
-  const TOKENS_PER_BLOCK = useGameStore((state) => state.TOKENS_PER_BLOCK);
+  const TOKENS_BY_TYPE = useGameStore((state) => state.TOKENS_BY_TYPE);
   
   const { playerCount, isConnected } = useMultiplayer();
   const [miningProgress, setMiningProgress] = useState(0);
@@ -118,7 +118,12 @@ export function GameHUD({ isPointerLocked, isFullscreen = false }: GameHUDProps)
                       : '#ef4444'
                   }}
                 />
-                <span className="capitalize font-medium">{selectedCube.type} Block</span>
+                <div className="flex flex-col">
+                  <span className="capitalize font-medium">{selectedCube.type} Block</span>
+                  <span className="text-xs text-accent">
+                    +{TOKENS_BY_TYPE[selectedCube.type].toLocaleString()} tokens
+                  </span>
+                </div>
                 
                 {isInRange ? (
                   <span className="text-neon-green font-pixel text-xs animate-pulse">

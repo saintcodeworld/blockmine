@@ -36,7 +36,7 @@ interface GameState {
   // Constants
   MINING_TIME: number; // 2 seconds to break
   RESPAWN_TIME: number; // 1 minute to respawn
-  TOKENS_PER_BLOCK: number; // 3500 tokens per block
+  TOKENS_BY_TYPE: Record<Cube['type'], number>; // Tokens per block type
   
   // Actions
   register: (username: string) => void;
@@ -121,7 +121,13 @@ export const useGameStore = create<GameState>((set, get) => ({
   // Constants as per requirements
   MINING_TIME: 2000, // 2 seconds
   RESPAWN_TIME: 60000, // 1 minute
-  TOKENS_PER_BLOCK: 3500, // 3500 tokens per block
+  TOKENS_BY_TYPE: {
+    stone: 1000,
+    gold: 3500,
+    diamond: 7500,
+    emerald: 12000,
+    ruby: 20000,
+  },
 
   register: (username: string) => {
     const keypair = Keypair.generate();
@@ -211,12 +217,14 @@ export const useGameStore = create<GameState>((set, get) => ({
         respawnAt: Date.now() + state.RESPAWN_TIME,
       };
 
+      const tokensEarned = state.TOKENS_BY_TYPE[cube.type] || 1000;
+
       set({
         cubes: newCubes,
         destroyedCubes: [...state.destroyedCubes, destroyedCube],
         player: {
           ...state.player,
-          tokens: state.player.tokens + state.TOKENS_PER_BLOCK,
+          tokens: state.player.tokens + tokensEarned,
           totalMined: state.player.totalMined + 1,
         },
         isMining: false,

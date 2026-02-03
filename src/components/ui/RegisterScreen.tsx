@@ -6,7 +6,7 @@ import { Pickaxe, Sparkles, Coins, Users, Shield } from 'lucide-react';
 
 export function RegisterScreen() {
   const register = useGameStore((state) => state.register);
-  const TOKENS_PER_BLOCK = useGameStore((state) => state.TOKENS_PER_BLOCK);
+  const TOKENS_BY_TYPE = useGameStore((state) => state.TOKENS_BY_TYPE);
   const { getUsername, user } = useAuth();
 
   // Auto-register with authenticated username
@@ -97,12 +97,27 @@ export function RegisterScreen() {
         </div>
 
         {/* Token info */}
-        <div className="mt-8 glass-card rounded-xl p-4 text-center">
-          <p className="text-sm text-muted-foreground mb-2">Earn per block mined</p>
-          <p className="font-pixel text-2xl text-accent gold-glow">
-            +{TOKENS_PER_BLOCK.toLocaleString()} tokens
-          </p>
-          <p className="text-xs text-muted-foreground mt-2">
+        <div className="mt-8 glass-card rounded-xl p-4">
+          <p className="text-sm text-muted-foreground mb-3 text-center">Tokens per block</p>
+          <div className="grid grid-cols-5 gap-2 text-center">
+            {Object.entries(TOKENS_BY_TYPE).map(([type, tokens]) => (
+              <div key={type} className="flex flex-col items-center gap-1">
+                <div 
+                  className="w-6 h-6 rounded"
+                  style={{
+                    backgroundColor: type === 'stone' ? '#6b7280' 
+                      : type === 'gold' ? '#f59e0b'
+                      : type === 'diamond' ? '#06b6d4'
+                      : type === 'emerald' ? '#10b981'
+                      : '#ef4444'
+                  }}
+                />
+                <span className="text-xs text-muted-foreground capitalize">{type}</span>
+                <span className="font-pixel text-xs text-accent">+{tokens.toLocaleString()}</span>
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground mt-3 text-center">
             Hold click for 2 seconds to break a block • Blocks respawn after 1 minute
           </p>
         </div>
