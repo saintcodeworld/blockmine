@@ -6,7 +6,7 @@ import { componentTagger } from "lovable-tagger";
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
-  const supabaseUrl = env.VITE_SUPABASE_URL || "";
+  const supabaseUrl = (env.VITE_SUPABASE_URL || "").replace(/\/$/, "");
   const supabaseKey = env.VITE_SUPABASE_PUBLISHABLE_KEY || "";
 
   return {
@@ -23,10 +23,13 @@ export default defineConfig(({ mode }) => {
             target: supabaseUrl,
             changeOrigin: true,
             secure: true,
-            rewrite: () => "/functions/v1/transfer-tokens",
+            rewrite: (path) => path.replace(/^\/api\/transfer-tokens/, "/functions/v1/transfer-tokens"),
             configure: (proxy) => {
-              proxy.on("proxyReq", (proxyReq) => {
+              proxy.on("proxyReq", (proxyReq, req) => {
                 proxyReq.setHeader("Authorization", `Bearer ${supabaseKey}`);
+              });
+              proxy.on("error", (err, req, res) => {
+                console.error("[Vite proxy] transfer-tokens error:", err.message);
               });
             },
           },

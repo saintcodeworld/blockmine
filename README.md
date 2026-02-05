@@ -107,6 +107,27 @@ location /api/transfer-tokens {
 
 Replace `YOUR_SUPABASE_ANON_KEY` with your project’s anon (publishable) key. Reload nginx and try Withdraw again.
 
+### 502 Bad Gateway when using `npm run dev`
+
+If you get **502** on `POST https://robinadminserver.xyz/api/transfer-tokens` while running `npm run dev`, your reverse proxy (e.g. nginx) in front of Vite is handling `/api/` and not forwarding it to Vite. The browser hits nginx; nginx must send `/api/transfer-tokens` to the Vite dev server so Vite can proxy it to Supabase.
+
+**Fix: forward `/api/` to Vite** (add this **before** any other `location /api/` block, or use it instead of proxying `/api/` to another backend):
+
+```nginx
+location /api/ {
+    proxy_pass http://127.0.0.1:8080;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+```
+
+Then restart nginx (`sudo nginx -t && sudo systemctl reload nginx`) and **restart** `npm run dev`. Try Withdraw again.
+
+**Quick check:** Open `http://YOUR_VPS_IP:8080` (or `http://localhost:8080` on the VPS) and try Withdraw. If it works there, the issue is nginx not forwarding `/api/` to port 8080.
+
 ## What technologies are used for this project?
 
 This project is built with:
