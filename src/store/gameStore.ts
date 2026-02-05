@@ -137,12 +137,12 @@ export const useGameStore = create<GameState>((set, get) => ({
       .map(b => b.toString(16).padStart(2, '0'))
       .join('');
 
-    // Generate random spawn position to avoid collision with other players
-    // Spawn in a ring around the center, avoiding the very center
+    // Spawn at random position near the cube area but not too close (ring just outside grid)
+    // Cube grid is roughly x,z in [-15, 15]; spawn at radius 16–20 so we're beside the field
     const angle = Math.random() * Math.PI * 2;
-    const distance = 3 + Math.random() * 4; // 3-7 units from center
+    const distance = 16 + Math.random() * 4; // 16–20 units from center
     const spawnX = Math.cos(angle) * distance;
-    const spawnZ = 8 + Math.sin(angle) * distance; // Offset from base spawn
+    const spawnZ = Math.sin(angle) * distance;
 
     const player: Player = {
       id: `player-${Date.now()}`,

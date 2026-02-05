@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
-import { Vector3, Group } from 'three';
+import { Vector3, Group, Box3 } from 'three';
 import { useGameStore } from '@/store/gameStore';
 import { SteveModel } from './SteveModel';
 
@@ -20,14 +20,25 @@ const GROUND_LEVEL = 2;
 const CAMERA_DISTANCE = 5;
 const CAMERA_HEIGHT = 2.5;
 
+// Player and cube collision (match FirstPersonController)
+const PLAYER_WIDTH = 0.4;
+const PLAYER_HEIGHT = 1.8;
+const CUBE_SIZE = 1.8;
+
 export function ThirdPersonController({ onPositionChange }: ThirdPersonControllerProps) {
   const { camera } = useThree();
   const updateMining = useGameStore((state) => state.updateMining);
   const checkRespawns = useGameStore((state) => state.checkRespawns);
   const isMining = useGameStore((state) => state.isMining);
+  const cubes = useGameStore((state) => state.cubes);
+  const player = useGameStore((state) => state.player);
+  
+  const cubesRef = useRef(cubes);
+  cubesRef.current = cubes;
   
   const playerRef = useRef<Group>(null);
-  const position = useRef(new Vector3(0, GROUND_LEVEL, 8));
+  const initialPos = player?.position ?? [0, GROUND_LEVEL, 8];
+  const position = useRef(new Vector3(initialPos[0], initialPos[1], initialPos[2]));
   const rotation = useRef({ x: 0.3, y: 0 }); // Slight downward angle
   const velocity = useRef(new Vector3());
   const verticalVelocity = useRef(0);
@@ -44,6 +55,46 @@ export function ThirdPersonController({ onPositionChange }: ThirdPersonControlle
   });
   
   const mouseMovement = useRef({ x: 0, y: 0 });
+
+  // Check collision with cubes
+  const checkCollision = (newPos: Vector3, currentVerticalVel: number): { canMove: boolean; groundY: number | null } => {
+    const currentCubes = cubesRef.current;
+    if (!currentCubes?.length) return { canMove: true, groundY: null };
+
+    const halfSize = CUBE_SIZE / 2;
+    const playerMin = new Vector3(newPos.x - PLAYER_WIDTH, newPos.y - PLAYER_HEIGHT, newPos.z - PLAYER_WIDTH);
+    const playerMax = new Vector3(newPos.x + PLAYER_WIDTH, newPos.y + 0.1, newPos.z + PLAYER_WIDTH);
+    const playerBox = new Box3(playerMin, playerMax);
+    let canMove = true;
+    let groundY: number | null = null;
+
+    for (const cube of currentCubes) {
+      const cubePos = new Vector3(...cube.position);
+      const cubeMin = new Vector3(cubePos.x - halfSize, cubePos.y - halfSize, cubePos.z - halfSize);
+      const cubeMax = new Vector3(cubePos.x + halfSize, cubePos.y + halfSize, cubePos.z + halfSize);
+      const cubeBox = new Box3(cubeMin, cubeMax);
+      if (playerBox.intersectsBox(cubeBox)) {
+        const playerBottom = newPos.y - PLAYER_HEIGHT;
+        const cubeTop = cubePos.y + halfSize;
+        if (playerBottom >= cubeTop - 0.5 && currentVerticalVel <= 0) {
+          const newGroundY = cubeTop + PLAYER_HEIGHT;
+          if (groundY === null || newGroundY > groundY) groundY = newGroundY;
+        } else {
+          canMove = false;
+        }
+      }
+    }
+    return { canMove, groundY };
+  };
+
+  const isBetweenCubes = (pos: Vector3): boolean => {
+    const probe = PLAYER_WIDTH + 0.2;
+    const right = checkCollision(pos.clone().add(new Vector3(probe, 0, 0)), 0).canMove;
+    const left = checkCollision(pos.clone().add(new Vector3(-probe, 0, 0)), 0).canMove;
+    const forward = checkCollision(pos.clone().add(new Vector3(0, 0, -probe)), 0).canMove;
+    const back = checkCollision(pos.clone().add(new Vector3(0, 0, probe)), 0).canMove;
+    return (!right && !left) || (!forward && !back);
+  };
 
   // Keyboard controls
   useEffect(() => {
@@ -140,6 +191,12 @@ export function ThirdPersonController({ onPositionChange }: ThirdPersonControlle
     velocity.current.x += (moveDirection.x * speed - velocity.current.x) * 0.2;
     velocity.current.z += (moveDirection.z * speed - velocity.current.z) * 0.2;
 
+    // When stuck between cubes, cannot move horizontally
+    if (isBetweenCubes(position.current)) {
+      velocity.current.x = 0;
+      velocity.current.z = 0;
+    }
+
     // Jump
     if (keys.current.jump && isGrounded.current) {
       verticalVelocity.current = JUMP_FORCE;
@@ -149,10 +206,37 @@ export function ThirdPersonController({ onPositionChange }: ThirdPersonControlle
     // Gravity
     verticalVelocity.current -= GRAVITY;
 
-    // Apply movement
-    position.current.x += velocity.current.x;
-    position.current.z += velocity.current.z;
-    position.current.y += verticalVelocity.current;
+    // Apply horizontal movement with cube collision
+    const newHorizontalPos = position.current.clone();
+    newHorizontalPos.x += velocity.current.x;
+    newHorizontalPos.z += velocity.current.z;
+    const horizontalCheck = checkCollision(newHorizontalPos, verticalVelocity.current);
+    const stuckBetweenCubes = isBetweenCubes(position.current);
+    if (!stuckBetweenCubes && horizontalCheck.canMove) {
+      position.current.x = newHorizontalPos.x;
+      position.current.z = newHorizontalPos.z;
+    } else if (!stuckBetweenCubes) {
+      const newXPos = position.current.clone();
+      newXPos.x += velocity.current.x;
+      if (checkCollision(newXPos, verticalVelocity.current).canMove) position.current.x = newXPos.x;
+      const newZPos = position.current.clone();
+      newZPos.z += velocity.current.z;
+      if (checkCollision(newZPos, verticalVelocity.current).canMove) position.current.z = newZPos.z;
+    }
+
+    // Vertical movement
+    const newVerticalPos = position.current.clone();
+    newVerticalPos.y += verticalVelocity.current;
+    const verticalCheck = checkCollision(newVerticalPos, verticalVelocity.current);
+    if (verticalCheck.groundY !== null) {
+      position.current.y = verticalCheck.groundY;
+      verticalVelocity.current = 0;
+      isGrounded.current = true;
+    } else if (verticalCheck.canMove) {
+      position.current.y = newVerticalPos.y;
+    } else if (verticalVelocity.current > 0) {
+      verticalVelocity.current = 0;
+    }
 
     // Ground collision
     if (position.current.y <= GROUND_LEVEL) {
@@ -188,7 +272,7 @@ export function ThirdPersonController({ onPositionChange }: ThirdPersonControlle
   });
 
   return (
-    <group ref={playerRef} position={[0, GROUND_LEVEL - 1.5, 8]}>
+    <group ref={playerRef} position={[position.current.x, position.current.y - 1.5, position.current.z]}>
       <SteveModel isMoving={isMoving} isMining={isMining} />
     </group>
   );

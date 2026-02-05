@@ -163,6 +163,18 @@ export function FirstPersonController({ onPositionChange, remotePlayers = [] }: 
     return { canMove, groundY };
   };
 
+  // True when player is stuck between cubes (can't move in opposite directions)
+  const isBetweenCubes = (pos: Vector3): boolean => {
+    const probe = PLAYER_WIDTH + 0.2;
+    const right = checkCollision(pos.clone().add(new Vector3(probe, 0, 0)), 0).canMove;
+    const left = checkCollision(pos.clone().add(new Vector3(-probe, 0, 0)), 0).canMove;
+    const forward = checkCollision(pos.clone().add(new Vector3(0, 0, -probe)), 0).canMove;
+    const back = checkCollision(pos.clone().add(new Vector3(0, 0, probe)), 0).canMove;
+    const betweenX = !right && !left;
+    const betweenZ = !forward && !back;
+    return betweenX || betweenZ;
+  };
+
   // Keyboard controls
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -268,6 +280,12 @@ export function FirstPersonController({ onPositionChange, remotePlayers = [] }: 
     velocity.current.x += (moveDirection.x * speed - velocity.current.x) * 0.2;
     velocity.current.z += (moveDirection.z * speed - velocity.current.z) * 0.2;
 
+    // When stuck between cubes, cannot move horizontally
+    if (isBetweenCubes(position.current)) {
+      velocity.current.x = 0;
+      velocity.current.z = 0;
+    }
+
     // Footstep audio
     if (isMoving && isGrounded.current) {
       const now = Date.now();
@@ -288,16 +306,17 @@ export function FirstPersonController({ onPositionChange, remotePlayers = [] }: 
     // Gravity
     verticalVelocity.current -= GRAVITY;
 
-    // Try horizontal movement with collision
+    // Try horizontal movement with collision (skip if stuck between cubes)
     const newHorizontalPos = position.current.clone();
     newHorizontalPos.x += velocity.current.x;
     newHorizontalPos.z += velocity.current.z;
 
     const horizontalCheck = checkCollision(newHorizontalPos, verticalVelocity.current);
-    if (horizontalCheck.canMove) {
+    const stuckBetweenCubes = isBetweenCubes(position.current);
+    if (!stuckBetweenCubes && horizontalCheck.canMove) {
       position.current.x = newHorizontalPos.x;
       position.current.z = newHorizontalPos.z;
-    } else {
+    } else if (!stuckBetweenCubes) {
       // Try X only
       const newXPos = position.current.clone();
       newXPos.x += velocity.current.x;
