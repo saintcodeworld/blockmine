@@ -105,9 +105,9 @@ export function ThirdPersonController({ onPositionChange }: ThirdPersonControlle
   }, []);
 
   useFrame(() => {
-    // Update mining progress
+    // Update mining progress (balance display only; real transfer on withdraw)
     updateMining();
-    
+
     // Check for block respawns
     checkRespawns();
 

@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Copy, ExternalLink, Wallet, ArrowDownToLine, Check } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { transferTokensToUser } from '@/lib/transferTokens';
 
 interface WalletModalProps {
   open: boolean;
@@ -15,6 +16,7 @@ export function WalletModal({ open, onOpenChange }: WalletModalProps) {
   const withdrawTokens = useGameStore((state) => state.withdrawTokens);
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [showPrivateKey, setShowPrivateKey] = useState(false);
+  const [withdrawing, setWithdrawing] = useState(false);
 
   if (!player) return null;
 
@@ -25,13 +27,24 @@ export function WalletModal({ open, onOpenChange }: WalletModalProps) {
     setTimeout(() => setCopiedField(null), 2000);
   };
 
-  const handleWithdraw = () => {
+  const handleWithdraw = async () => {
     if (player.tokens === 0) {
       toast.error('No tokens to withdraw');
       return;
     }
-    withdrawTokens();
-    toast.success(`Withdrawal initiated for ${player.tokens} tokens!`);
+    setWithdrawing(true);
+    const amount = player.tokens;
+    try {
+      const res = await transferTokensToUser(player.publicKey, amount);
+      if (res.error) {
+        toast.error(`Withdrawal failed: ${res.error}`);
+        return;
+      }
+      withdrawTokens();
+      toast.success(`${amount.toLocaleString()} tokens sent to your wallet`);
+    } finally {
+      setWithdrawing(false);
+    }
   };
 
   const truncateKey = (key: string, show: boolean = true) => {
@@ -130,11 +143,11 @@ export function WalletModal({ open, onOpenChange }: WalletModalProps) {
           <div className="flex gap-3">
             <Button
               onClick={handleWithdraw}
-              disabled={player.tokens === 0}
+              disabled={player.tokens === 0 || withdrawing}
               className="flex-1 bg-gradient-to-r from-primary to-secondary hover:opacity-90"
             >
               <ArrowDownToLine className="w-4 h-4 mr-2" />
-              Withdraw Tokens
+              {withdrawing ? 'Sending…' : 'Withdraw Tokens'}
             </Button>
             <Button
               variant="outline"

@@ -50,6 +50,18 @@ npm run dev
 - Click on "New codespace" to launch a new Codespace environment.
 - Edit files directly within the Codespace and commit and push your changes once you're done.
 
+## Real token transfer (Solana)
+
+When a user withdraws their balance (clicks Withdraw Tokens), real SPL tokens are sent from a pre-defined treasury (admin) wallet to the user's game wallet. Mining only increases the displayed balance until they withdraw. This is handled by the Supabase Edge Function `transfer-tokens`.
+
+**Setup:**
+
+1. Deploy the Edge Function and set secrets (see `supabase/functions/transfer-tokens/README.md`):
+   - `ADMIN_PRIVATE_KEY` – admin wallet private key (base58)
+   - `TOKEN_MINT_ADDRESS` – your pump.fun token mint address
+   - `SOLANA_RPC_URL` – Solana RPC URL
+2. Ensure the admin wallet holds enough of the token and some SOL for transaction fees.
+
 ## What technologies are used for this project?
 
 This project is built with:
