@@ -12,9 +12,11 @@ import {
 } from "npm:@solana/spl-token@0.4.9";
 import { decode as decodeBase58 } from "npm:bs58@5.0.0";
 
-const corsHeaders = {
+const corsHeaders: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Max-Age": "86400",
 };
 
 interface TransferBody {
@@ -29,9 +31,9 @@ function getEnv(name: string): string {
 }
 
 Deno.serve(async (req: Request) => {
-  // CORS preflight
+  // CORS preflight – must return 2xx and CORS headers when called from custom domain (e.g. robinadminserver.xyz)
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return new Response(null, { status: 200, headers: corsHeaders });
   }
 
   try {
