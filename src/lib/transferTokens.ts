@@ -1,9 +1,7 @@
 /**
  * Requests a real SPL token transfer from the admin wallet to the user's wallet.
- * Backend (Supabase Edge Function) holds the admin key and performs the on-chain transfer.
+ * Calls same-origin /api/transfer-tokens to avoid CORS (proxied to Supabase Edge Function).
  */
-import { getSupabase } from '@/lib/supabase';
-
 export interface TransferResult {
   signature?: string;
   amount?: number;
@@ -11,36 +9,31 @@ export interface TransferResult {
   error?: string;
 }
 
+const TRANSFER_API = '/api/transfer-tokens';
+
 export async function transferTokensToUser(
   recipientPublicKey: string,
   amount: number
 ): Promise<TransferResult> {
-  let data: TransferResult | null = null;
-  let error: { message: string; context?: unknown } | null = null;
-
   try {
-    const supabase = getSupabase();
-    const result = await supabase.functions.invoke<TransferResult>('transfer-tokens', {
-      body: { recipientPublicKey, amount },
+    const res = await fetch(TRANSFER_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ recipientPublicKey, amount }),
     });
-    data = result.data;
-    error = result.error;
+    const data: TransferResult & { error?: string } = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      return { error: data?.error ?? `Request failed: ${res.status}` };
+    }
+    if (data?.error) {
+      return { error: data.error };
+    }
+    return data;
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     return {
-      error: `Request failed: ${msg}. Make sure the Edge Function is deployed and secrets are set (see docs).`,
+      error: `Request failed: ${msg}. Ensure /api/transfer-tokens is proxied (see README).`,
     };
   }
-
-  if (error) {
-    const hint =
-      error.message?.includes('fetch') || error.message?.includes('Failed to send')
-        ? ' Is the transfer-tokens Edge Function deployed to this Supabase project?'
-        : '';
-    return { error: (error.message ?? 'Transfer request failed') + hint };
-  }
-  if (data?.error) {
-    return { error: data.error };
-  }
-  return data ?? {};
 }

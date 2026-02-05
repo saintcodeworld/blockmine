@@ -83,6 +83,30 @@ When a user withdraws their balance (clicks Withdraw Tokens), real SPL tokens ar
    - `SOLANA_RPC_URL` – Solana RPC URL
 2. Ensure the admin wallet holds enough of the token and some SOL for transaction fees.
 
+### Withdraw CORS fix (custom domain, e.g. robinadminserver.xyz)
+
+The app calls **same-origin** `/api/transfer-tokens` so the browser never hits Supabase directly (no CORS).
+
+- **Development** (`npm run dev`): Vite proxies `/api/transfer-tokens` to the Supabase function (uses `.env`).
+- **Production (VPS)**: You must proxy `/api/transfer-tokens` on your server.
+
+**Nginx example** (add inside your `server { ... }` for robinadminserver.xyz):
+
+```nginx
+location /api/transfer-tokens {
+    proxy_pass https://jmsqvgpsutxusyxephyb.supabase.co/functions/v1/transfer-tokens;
+    proxy_http_version 1.1;
+    proxy_set_header Host jmsqvgpsutxusyxephyb.supabase.co;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Content-Type application/json;
+    proxy_set_header Authorization "Bearer YOUR_SUPABASE_ANON_KEY";
+}
+```
+
+Replace `YOUR_SUPABASE_ANON_KEY` with your project’s anon (publishable) key. Reload nginx and try Withdraw again.
+
 ## What technologies are used for this project?
 
 This project is built with:
