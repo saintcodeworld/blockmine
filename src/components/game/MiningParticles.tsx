@@ -37,6 +37,8 @@ const SPARKLE_COLORS: Record<string, string[]> = {
   gold: ['#ffd700', '#ffec8b', '#ffffff'],
 };
 
+let effectIdCounter = 0;
+
 export function MiningParticles() {
   const [effects, setEffects] = useState<ParticleEffect[]>([]);
   const lastMinedCube = useRef<string | null>(null);
@@ -104,7 +106,7 @@ export function MiningParticles() {
     }
 
     setEffects(prev => [...prev, {
-      id: `chip-${Date.now()}-${Math.random()}`,
+      id: `chip-${Date.now()}-${++effectIdCounter}`,
       particles,
       startTime: Date.now(),
     }]);
@@ -170,7 +172,7 @@ export function MiningParticles() {
     }
 
     setEffects(prev => [...prev, {
-      id: `break-${Date.now()}`,
+      id: `break-${Date.now()}-${++effectIdCounter}`,
       particles,
       startTime: Date.now(),
     }]);

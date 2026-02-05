@@ -50,6 +50,27 @@ npm run dev
 - Click on "New codespace" to launch a new Codespace environment.
 - Edit files directly within the Codespace and commit and push your changes once you're done.
 
+## Running on VPS – fix "player_progress" and Realtime errors
+
+If you see **"Could not find the table 'public.player_progress'"**, **WebSocket/Realtime failed**, or **Error loading player progress**:
+
+1. **Create the table in Supabase**
+   - Open [Supabase Dashboard](https://supabase.com/dashboard) → your project.
+   - Go to **SQL Editor** → **New query**.
+   - Copy the contents of **`supabase/migrations/RUN_THIS_IN_SUPABASE_SQL_EDITOR.sql`** and run it.
+   - This creates `player_progress` and the required RLS policies.
+
+2. **Check env on the VPS**
+   - Ensure `.env` (or your build env) has:
+     - `VITE_SUPABASE_URL` = your project URL (e.g. `https://jmsqvgpsutxusyxephyb.supabase.co`)
+     - `VITE_SUPABASE_PUBLISHABLE_KEY` = your project **anon** (or publishable) key.
+   - Rebuild after changing env: `npm run build`.
+
+3. **Realtime / WebSocket**
+   - After the table exists and env is correct, reload the app. Realtime and multiplayer should connect once the table and auth work.
+
+The **"Module buffer externalized"** warning comes from Solana libraries in the browser; it’s a Vite compatibility warning and doesn’t stop the app.
+
 ## Real token transfer (Solana)
 
 When a user withdraws their balance (clicks Withdraw Tokens), real SPL tokens are sent from a pre-defined treasury (admin) wallet to the user's game wallet. Mining only increases the displayed balance until they withdraw. This is handled by the Supabase Edge Function `transfer-tokens`.

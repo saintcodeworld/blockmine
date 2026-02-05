@@ -2,7 +2,7 @@
  * Requests a real SPL token transfer from the admin wallet to the user's wallet.
  * Backend (Supabase Edge Function) holds the admin key and performs the on-chain transfer.
  */
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabase } from '@/lib/supabase';
 
 export interface TransferResult {
   signature?: string;
@@ -19,6 +19,7 @@ export async function transferTokensToUser(
   let error: { message: string; context?: unknown } | null = null;
 
   try {
+    const supabase = getSupabase();
     const result = await supabase.functions.invoke<TransferResult>('transfer-tokens', {
       body: { recipientPublicKey, amount },
     });
