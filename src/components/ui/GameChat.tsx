@@ -72,7 +72,7 @@ export function GameChat({ isPointerLocked, onChatFocus, onChatBlur }: GameChatP
   };
 
   return (
-    <div className="absolute bottom-4 left-4 z-40 pointer-events-auto">
+    <div className="absolute bottom-4 left-4 z-40 pointer-events-auto font-sans">
       {/* Collapsed chat button */}
       {!isOpen && (
         <Button
@@ -84,12 +84,12 @@ export function GameChat({ isPointerLocked, onChatFocus, onChatBlur }: GameChatP
             document.exitPointerLock();
             setTimeout(() => inputRef.current?.focus(), 50);
           }}
-          className="glass-card flex items-center gap-2 hover:bg-primary/20"
+          className="mc-panel bg-[#C6C6C6] text-black hover:bg-[#D6D6D6] flex items-center gap-2 h-auto py-2"
         >
           <MessageCircle className="w-4 h-4" />
-          <span className="text-xs">Chat (T)</span>
+          <span className="text-xs font-bold">Chat (T)</span>
           {messages.length > 0 && (
-            <span className="bg-primary text-primary-foreground text-xs px-1.5 rounded-full">
+            <span className="bg-[#555555] text-white text-xs px-1.5 rounded-full">
               {messages.length}
             </span>
           )}
@@ -98,22 +98,22 @@ export function GameChat({ isPointerLocked, onChatFocus, onChatBlur }: GameChatP
 
       {/* Expanded chat panel */}
       {isOpen && (
-        <div className="glass-card rounded-lg w-80 flex flex-col overflow-hidden animate-fade-in">
+        <div className="mc-panel w-80 flex flex-col overflow-hidden animate-fade-in bg-[#C6C6C6]">
           {/* Header */}
-          <div className="flex items-center justify-between px-3 py-2 border-b border-border/50">
+          <div className="flex items-center justify-between px-2 py-2 border-b-2 border-[#8B8B8B] bg-[#A0A0A0] text-white">
             <div className="flex items-center gap-2">
-              <MessageCircle className="w-4 h-4 text-primary" />
-              <span className="text-sm font-medium">World Chat</span>
+              <MessageCircle className="w-4 h-4 text-white" />
+              <span className="text-sm font-bold">World Chat</span>
               {isConnected ? (
                 <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
               ) : (
-                <span className="w-2 h-2 bg-yellow-500 rounded-full" />
+                <span className="w-2 h-2 bg-red-500 rounded-full" />
               )}
             </div>
             <Button
               variant="ghost"
               size="icon"
-              className="w-6 h-6"
+              className="w-6 h-6 hover:bg-white/20 text-white"
               onClick={handleClose}
             >
               <X className="w-4 h-4" />
@@ -121,10 +121,10 @@ export function GameChat({ isPointerLocked, onChatFocus, onChatBlur }: GameChatP
           </div>
 
           {/* Messages */}
-          <ScrollArea className="h-48 p-2">
+          <ScrollArea className="h-48 p-2 bg-[#000000]/20">
             <div ref={scrollRef} className="space-y-1">
               {messages.length === 0 ? (
-                <p className="text-xs text-muted-foreground text-center py-4">
+                <p className="text-xs text-[#555555] text-center py-4 font-bold">
                   No messages yet. Say hello!
                 </p>
               ) : (
@@ -136,19 +136,19 @@ export function GameChat({ isPointerLocked, onChatFocus, onChatBlur }: GameChatP
           </ScrollArea>
 
           {/* Input */}
-          <div className="flex items-center gap-2 p-2 border-t border-border/50">
+          <div className="flex items-center gap-2 p-2 border-t-2 border-[#8B8B8B] bg-[#C6C6C6]">
             <Input
               ref={inputRef}
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyPress={handleKeyPress}
               placeholder="Type a message..."
-              className="flex-1 h-8 text-sm bg-background/50"
+              className="flex-1 h-8 text-sm bg-white border-2 border-[#555555] text-black rounded-none focus:ring-0"
               maxLength={200}
             />
             <Button
               size="icon"
-              className="w-8 h-8"
+              className="w-8 h-8 rounded-none bg-[#555555] hover:bg-[#373737] text-white"
               onClick={handleSend}
               disabled={!inputValue.trim()}
             >

@@ -39,7 +39,7 @@ export function useGameAudio() {
       const bufferSize = ctx.sampleRate * 0.08;
       const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
       const output = noiseBuffer.getChannelData(0);
-      
+
       for (let i = 0; i < bufferSize; i++) {
         // Brown noise for earthy sound
         output[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.3));
@@ -89,7 +89,7 @@ export function useGameAudio() {
       const bufferSize = ctx.sampleRate * 0.1;
       const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
       const output = noiseBuffer.getChannelData(0);
-      
+
       for (let i = 0; i < bufferSize; i++) {
         output[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.2));
       }
@@ -134,22 +134,15 @@ export function useGameAudio() {
       const ctx = ensureAudioContext();
       const currentTime = ctx.currentTime;
 
-      // Pitch varies by block type
-      const pitchMultiplier = 
-        blockType === 'diamond' ? 1.5 :
-        blockType === 'gold' ? 1.3 :
-        blockType === 'emerald' ? 1.4 :
-        blockType === 'ruby' ? 1.35 : 1.0;
-
       // Crumble noise burst
       const bufferSize = ctx.sampleRate * 0.25;
       const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
       const output = noiseBuffer.getChannelData(0);
-      
+
       for (let i = 0; i < bufferSize; i++) {
         const t = i / bufferSize;
         // Layered decay for crumble effect
-        output[i] = (Math.random() * 2 - 1) * 
+        output[i] = (Math.random() * 2 - 1) *
           (Math.exp(-t * 4) + 0.3 * Math.exp(-t * 8) * Math.sin(t * 50));
       }
 
@@ -159,31 +152,13 @@ export function useGameAudio() {
       // Filter sweep
       const filter = ctx.createBiquadFilter();
       filter.type = 'lowpass';
-      filter.frequency.setValueAtTime(3000 * pitchMultiplier, currentTime);
+      filter.frequency.setValueAtTime(3000, currentTime);
       filter.frequency.exponentialRampToValueAtTime(500, currentTime + 0.2);
 
       // Gain
       const gainNode = ctx.createGain();
       gainNode.gain.setValueAtTime(0.25, currentTime);
       gainNode.gain.exponentialRampToValueAtTime(0.01, currentTime + 0.25);
-
-      // Success chime for valuable blocks
-      if (blockType !== 'stone') {
-        const chime = ctx.createOscillator();
-        chime.type = 'sine';
-        chime.frequency.setValueAtTime(600 * pitchMultiplier, currentTime);
-        chime.frequency.setValueAtTime(800 * pitchMultiplier, currentTime + 0.05);
-        chime.frequency.setValueAtTime(1000 * pitchMultiplier, currentTime + 0.1);
-        
-        const chimeGain = ctx.createGain();
-        chimeGain.gain.setValueAtTime(0.1, currentTime);
-        chimeGain.gain.exponentialRampToValueAtTime(0.001, currentTime + 0.3);
-        
-        chime.connect(chimeGain);
-        chimeGain.connect(ctx.destination);
-        chime.start(currentTime);
-        chime.stop(currentTime + 0.35);
-      }
 
       noiseSource.connect(filter);
       filter.connect(gainNode);
@@ -204,7 +179,7 @@ export function useGameAudio() {
 
       // Ascending arpeggio
       const notes = [523, 659, 784, 1047]; // C5, E5, G5, C6
-      
+
       notes.forEach((freq, i) => {
         const osc = ctx.createOscillator();
         osc.type = 'sine';
@@ -230,7 +205,7 @@ export function useGameAudio() {
   useEffect(() => {
     return () => {
       if (miningLoopNode.current) {
-        try { miningLoopNode.current.stop(); } catch (e) {}
+        try { miningLoopNode.current.stop(); } catch (e) { }
       }
     };
   }, []);

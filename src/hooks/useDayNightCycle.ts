@@ -38,10 +38,10 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
   return result
     ? {
-        r: parseInt(result[1], 16),
-        g: parseInt(result[2], 16),
-        b: parseInt(result[3], 16),
-      }
+      r: parseInt(result[1], 16),
+      g: parseInt(result[2], 16),
+      b: parseInt(result[3], 16),
+    }
     : { r: 135, g: 206, b: 235 };
 }
 
@@ -50,7 +50,7 @@ function calculateSunPosition(hour: number): [number, number, number] {
   // At midnight, sun is below horizon
   const dayProgress = ((hour - 6) / 12) * Math.PI; // 0 at 6am, PI at 6pm
   const radius = 100;
-  
+
   // Clamp sun height based on time
   let height: number;
   if (hour >= 6 && hour <= 18) {
@@ -61,10 +61,10 @@ function calculateSunPosition(hour: number): [number, number, number] {
   } else {
     height = 0;
   }
-  
+
   const x = Math.cos(dayProgress) * radius;
   const z = 50;
-  
+
   return [x, Math.max(-50, height), z];
 }
 
@@ -76,16 +76,14 @@ function getPhase(hour: number): 'dawn' | 'day' | 'dusk' | 'night' {
 }
 
 export function useDayNightCycle(): TimeOfDay {
-  const [currentTime, setCurrentTime] = useState(() => new Date());
+  const [currentTime] = useState(() => {
+    const date = new Date();
+    date.setHours(12, 0, 0, 0); // Always set to noon
+    return date;
+  });
 
-  // Update time every minute
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 60000); // Update every minute
+  // Time update effect removed to keep it always day
 
-    return () => clearInterval(interval);
-  }, []);
 
   const timeOfDay = useMemo((): TimeOfDay => {
     const hour = currentTime.getHours();
@@ -141,7 +139,7 @@ export function useDayNightCycle(): TimeOfDay {
         sunIntensity = lerp(0.1, 1.5, t);
         ambientIntensity = lerp(0.15, 0.5, t);
         starsOpacity = lerp(0.8, 0, t);
-        
+
         // Transition dawn to day colors at end
         if (t > 0.7) {
           const t2 = (t - 0.7) / 0.3;

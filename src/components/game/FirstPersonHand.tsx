@@ -34,19 +34,16 @@ export function FirstPersonHand() {
     } else {
       targetSwing.current = 0;
     }
-    
+
     // Smooth swing interpolation
     swingRef.current += (targetSwing.current - swingRef.current) * 0.3;
-    
+
     // Apply swing rotation
     groupRef.current.rotateX(swingRef.current * 0.5);
     groupRef.current.rotateZ(-0.2 + swingRef.current * 0.3);
 
-    // Subtle idle bob
-    if (!isMining) {
-      const bob = Math.sin(state.clock.elapsedTime * 1.5) * 0.01;
-      groupRef.current.position.add(up.clone().multiplyScalar(bob));
-    }
+    // Fixed position - no idle bob
+
   });
 
   // Skin color matching Steve
@@ -61,7 +58,7 @@ export function FirstPersonHand() {
           <boxGeometry args={[0.12, 0.2, 0.12]} />
           <meshStandardMaterial color="#00a8a8" />
         </mesh>
-        
+
         {/* Forearm (skin) */}
         <mesh position={[0.08, -0.05, 0.1]}>
           <boxGeometry args={[0.11, 0.25, 0.11]} />
@@ -82,66 +79,66 @@ export function FirstPersonHand() {
           <boxGeometry args={[0.04, 0.35, 0.04]} />
           <meshStandardMaterial color="#8B5A2B" roughness={0.9} />
         </mesh>
-        
+
         {/* Handle detail strip */}
         <mesh position={[0.021, 0, 0]}>
           <boxGeometry args={[0.005, 0.35, 0.042]} />
           <meshStandardMaterial color="#6B4423" roughness={0.9} />
         </mesh>
-        
+
         {/* Pickaxe head - Diamond */}
         <group position={[0, 0.2, 0]}>
           {/* Main head block */}
           <mesh position={[0, 0, 0]}>
             <boxGeometry args={[0.22, 0.06, 0.04]} />
-            <meshStandardMaterial 
-              color="#5fd4e8" 
+            <meshStandardMaterial
+              color="#5fd4e8"
               metalness={0.3}
               roughness={0.4}
             />
           </mesh>
-          
+
           {/* Head highlight */}
           <mesh position={[0, 0.015, 0.021]}>
             <boxGeometry args={[0.18, 0.025, 0.005]} />
-            <meshStandardMaterial 
-              color="#8cf4ff" 
+            <meshStandardMaterial
+              color="#8cf4ff"
               metalness={0.4}
               roughness={0.3}
             />
           </mesh>
-          
+
           {/* Left spike */}
           <mesh position={[-0.14, 0, 0]}>
             <boxGeometry args={[0.06, 0.04, 0.035]} />
-            <meshStandardMaterial 
-              color="#4bc4d8" 
+            <meshStandardMaterial
+              color="#4bc4d8"
               metalness={0.3}
               roughness={0.4}
             />
           </mesh>
           <mesh position={[-0.18, 0, 0]}>
             <boxGeometry args={[0.03, 0.03, 0.03]} />
-            <meshStandardMaterial 
-              color="#3ab4c8" 
+            <meshStandardMaterial
+              color="#3ab4c8"
               metalness={0.3}
               roughness={0.4}
             />
           </mesh>
-          
+
           {/* Right spike */}
           <mesh position={[0.14, 0, 0]}>
             <boxGeometry args={[0.06, 0.04, 0.035]} />
-            <meshStandardMaterial 
-              color="#4bc4d8" 
+            <meshStandardMaterial
+              color="#4bc4d8"
               metalness={0.3}
               roughness={0.4}
             />
           </mesh>
           <mesh position={[0.18, 0, 0]}>
             <boxGeometry args={[0.03, 0.03, 0.03]} />
-            <meshStandardMaterial 
-              color="#3ab4c8" 
+            <meshStandardMaterial
+              color="#3ab4c8"
               metalness={0.3}
               roughness={0.4}
             />

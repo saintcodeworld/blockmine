@@ -15,7 +15,7 @@ export function useLeaderboard() {
   const fetchLeaderboard = useCallback(async () => {
     try {
       const supabase = getSupabase();
-      
+
       const { data, error: fetchError } = await supabase
         .from('player_progress')
         .select('username, total_mined')
@@ -49,9 +49,9 @@ export function useLeaderboard() {
     fetchLeaderboard();
   }, [fetchLeaderboard]);
 
-  // Refresh periodically (every 30 seconds)
+  // Refresh periodically (every 5 seconds)
   useEffect(() => {
-    const interval = setInterval(fetchLeaderboard, 30000);
+    const interval = setInterval(fetchLeaderboard, 5000);
     return () => clearInterval(interval);
   }, [fetchLeaderboard]);
 

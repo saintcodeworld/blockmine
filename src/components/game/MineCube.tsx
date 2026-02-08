@@ -22,7 +22,7 @@ export function MineCube({ cube, isSelected, onSelect, playerPosition }: MineCub
   const meshRef = useRef<Mesh>(null);
   const [hovered, setHovered] = useState(false);
   const textures = useMinecraftTextures();
-  
+
   const isMining = useGameStore((state) => state.isMining);
   const miningCubeId = useGameStore((state) => state.miningCubeId);
   const miningStartTime = useGameStore((state) => state.miningStartTime);
@@ -48,7 +48,7 @@ export function MineCube({ cube, isSelected, onSelect, playerPosition }: MineCub
 
   useFrame(() => {
     if (!meshRef.current) return;
-    
+
     // Mining shake animation
     if (isBeingMined && isMining) {
       meshRef.current.rotation.x = Math.sin(Date.now() * 0.05) * 0.1;
@@ -69,11 +69,11 @@ export function MineCube({ cube, isSelected, onSelect, playerPosition }: MineCub
 
   const handleClick = (e: any) => {
     e.stopPropagation();
-    
+
     if (!isInRange) return; // Can't interact if too far
-    
+
     if (isBeingMined) return;
-    
+
     if (isSelected) {
       startMining(cube.id);
     } else {
@@ -106,9 +106,9 @@ export function MineCube({ cube, isSelected, onSelect, playerPosition }: MineCub
           setHovered(false);
           if (isBeingMined) stopMining();
         }}
-        onPointerOver={(e) => { 
-          e.stopPropagation(); 
-          setHovered(true); 
+        onPointerOver={(e) => {
+          e.stopPropagation();
+          setHovered(true);
         }}
         onPointerOut={() => setHovered(false)}
         castShadow
@@ -123,7 +123,7 @@ export function MineCube({ cube, isSelected, onSelect, playerPosition }: MineCub
           metalness={0.1}
         />
       </mesh>
-      
+
       {/* Selection outline - only show if in range */}
       {isSelected && !isBeingMined && isInRange && (
         <mesh scale={1.02}>
@@ -160,11 +160,11 @@ export function MineCube({ cube, isSelected, onSelect, playerPosition }: MineCub
       {isBeingMined && miningProgress > 0.2 && (
         <mesh scale={1.01}>
           <boxGeometry args={[1.8, 1.8, 1.8]} />
-          <meshBasicMaterial 
-            color="#000000" 
-            wireframe 
-            opacity={miningProgress * 0.5} 
-            transparent 
+          <meshBasicMaterial
+            color="#000000"
+            wireframe
+            opacity={miningProgress * 0.5}
+            transparent
           />
         </mesh>
       )}

@@ -1,6 +1,6 @@
 import { useRef, useEffect } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
-import { Raycaster, Vector2 } from 'three';
+import { Raycaster, Vector2, Mesh, InstancedMesh } from 'three';
 import { useGameStore } from '@/store/gameStore';
 import { useGameAudio } from '@/hooks/useGameAudio';
 
@@ -14,7 +14,7 @@ export function CrosshairMining() {
   const isMouseDown = useRef(false);
   const lastMiningHitTime = useRef(0);
   const prevCubeCount = useRef(0);
-  
+
   const cubes = useGameStore((state) => state.cubes);
   const startMining = useGameStore((state) => state.startMining);
   const stopMining = useGameStore((state) => state.stopMining);
@@ -28,8 +28,7 @@ export function CrosshairMining() {
   // Track cube destruction for sound effects
   useEffect(() => {
     if (prevCubeCount.current > 0 && cubes.length < prevCubeCount.current) {
-      // A cube was destroyed - find which type it was
-      // Play break sound (default to stone if we can't determine type)
+      // A cube was destroyed
       playBlockBreak('stone');
       playTokenCollect();
     }
@@ -38,6 +37,8 @@ export function CrosshairMining() {
 
   useEffect(() => {
     const handleMouseDown = (e: MouseEvent) => {
+      // Work with pointer lock OR regardless if we decide to allow clicking without lock?
+      // Usually only if locked.
       if (e.button === 0 && document.pointerLockElement) {
         isMouseDown.current = true;
       }
@@ -60,65 +61,101 @@ export function CrosshairMining() {
   }, [stopMining]);
 
   useFrame(() => {
-    // Work in both pointer lock mode and fallback mode
     if (!player) return;
 
-    // Raycast from camera center (crosshair)
     raycaster.current.setFromCamera(new Vector2(0, 0), camera);
-    
-    // Collect all cube meshes for raycasting
-    const cubeMeshes: any[] = [];
+
+    // Improved candidate collection:
+    // We only care about objects that look like our cubes.
+    // Traversing entire scene is safer than assuming structure, but we limit depth or strict checks.
+    const candidates: any[] = [];
+
     scene.traverse((object: any) => {
-      // Look for meshes that are cubes (have boxGeometry and are in groups)
-      if (object.type === 'Mesh' && object.geometry?.type === 'BoxGeometry') {
-        const parent = object.parent;
-        if (parent?.type === 'Group') {
-          // Check if this is a mineable cube by checking parent position
-          const parentPos = parent.position;
-          const isCube = cubes.some(cube => 
-            Math.abs(cube.position[0] - parentPos.x) < 0.1 &&
-            Math.abs(cube.position[1] - parentPos.y) < 0.1 &&
-            Math.abs(cube.position[2] - parentPos.z) < 0.1
-          );
-          if (isCube) {
-            cubeMeshes.push(object);
-          }
+      // Collect InstancedMesh with cubeIds (our optimized cubes)
+      if (object.isInstancedMesh && object.userData.cubeIds) {
+        candidates.push(object);
+      }
+      // Collect standard meshes that are likely active cubes (MineCube)
+      // They are usually children of a Group which represents the Cube.
+      else if (object.isMesh && object.geometry?.type === 'BoxGeometry') {
+        // Basic check to avoid picking up skybox or other boxes
+        if (object.parent?.position) {
+          candidates.push(object);
         }
       }
     });
 
-    const intersects = raycaster.current.intersectObjects(cubeMeshes, false);
-    
-    if (intersects.length > 0) {
-      const hit = intersects[0];
-      const distance = hit.distance;
-      
-      if (distance <= MINING_REACH) {
-        // Find which cube this mesh belongs to
-        const hitPosition = hit.object.parent?.position;
-        if (hitPosition) {
-          const matchingCube = cubes.find(cube => 
-            Math.abs(cube.position[0] - hitPosition.x) < 0.1 &&
-            Math.abs(cube.position[1] - hitPosition.y) < 0.1 &&
-            Math.abs(cube.position[2] - hitPosition.z) < 0.1
+    const intersects = raycaster.current.intersectObjects(candidates, false);
+
+    // Find first valid hit within range
+    let closestHit = null;
+    let closestDistance = Infinity;
+    let hitCubeId: string | null = null;
+
+    for (const hit of intersects) {
+      if (hit.distance > MINING_REACH) continue;
+
+      if (hit.object instanceof InstancedMesh) {
+        if (hit.instanceId !== undefined && hit.object.userData.cubeIds) {
+          hitCubeId = hit.object.userData.cubeIds[hit.instanceId];
+          closestDistance = hit.distance;
+          closestHit = hit;
+          break; // raycaster returns sorted by distance, so first valid is closest
+        }
+      } else if (hit.object instanceof Mesh) {
+        // Check if this mesh corresponds to a cube
+        const parentPos = hit.object.parent?.position;
+        if (parentPos) {
+          // Find cube matching position
+          // This search is O(N) where N is mining/active cubes (very small)
+          // OR naive Search over all cubes (O(M)).
+          // Optimization: Only check active cubes? `cubes` is large.
+          // But `candidates` (active meshes) is small.
+          // We can find the cube in the global store.
+          // To optimize, we can use a spatial hash or just accept O(N) since N=8000 is still fast enough for one frame? No.
+          // 8000 checks per frame is bad.
+          // BUT, we only do this if we HIT a Mesh. Mining hits are rare-ish (only when looking at one).
+          // And we only search if we hit a box.
+
+          // Better: Check if `cubes` has a cube at roughly this position.
+          // Let's assume we can tolerate O(N) for now as typical "active" meshes are few (1-2).
+          // Wait, ALL InstancedMesh instances are effectively treated as one object in raycast.
+          // But this branch is for `Mesh`. Only a few `MineCube`s exist (1 at a time usually!).
+          // So finding the ID for a `MineCube` is fast.
+
+          const matchingCube = cubes.find(cube =>
+            Math.abs(cube.position[0] - parentPos.x) < 0.1 &&
+            Math.abs(cube.position[1] - parentPos.y) < 0.1 &&
+            Math.abs(cube.position[2] - parentPos.z) < 0.1
           );
-          
+
           if (matchingCube) {
-            setSelectedCube(matchingCube.id);
-            
-            if (isMouseDown.current && !isMining) {
-              startMining(matchingCube.id);
-            }
+            hitCubeId = matchingCube.id;
+            closestDistance = hit.distance;
+            closestHit = hit;
+            break;
           }
         }
-      } else {
-        setSelectedCube(null);
+      }
+    }
+
+    if (hitCubeId) {
+      if (miningCubeId !== hitCubeId) {
+        // Only set if different to avoid spamming state updates
+        // But we need to ensure selection is current
+        setSelectedCube(hitCubeId);
+      }
+
+      if (isMouseDown.current) {
+        if (!isMining || miningCubeId !== hitCubeId) {
+          startMining(hitCubeId);
+        }
       }
     } else {
       setSelectedCube(null);
+      if (isMining) stopMining();
     }
 
-    // Play mining hit sounds while mining
     if (isMining && miningCubeId) {
       const now = Date.now();
       if (now - lastMiningHitTime.current > MINING_HIT_INTERVAL) {

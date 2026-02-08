@@ -6,13 +6,12 @@ import { Leaderboard } from './Leaderboard';
 
 interface GameHUDProps {
   isPointerLocked: boolean;
-  isFullscreen?: boolean;
 }
 
 // Mining reach distance (must match MineCube.tsx)
 const MINING_REACH = 5;
 
-export function GameHUD({ isPointerLocked, isFullscreen = false }: GameHUDProps) {
+export function GameHUD({ isPointerLocked }: GameHUDProps) {
   const player = useGameStore((state) => state.player);
   const isMining = useGameStore((state) => state.isMining);
   const miningStartTime = useGameStore((state) => state.miningStartTime);
@@ -20,7 +19,7 @@ export function GameHUD({ isPointerLocked, isFullscreen = false }: GameHUDProps)
   const selectedCubeId = useGameStore((state) => state.selectedCubeId);
   const cubes = useGameStore((state) => state.cubes);
   const TOKENS_BY_TYPE = useGameStore((state) => state.TOKENS_BY_TYPE);
-  
+
   const { playerCount, isConnected } = useMultiplayer();
   const [miningProgress, setMiningProgress] = useState(0);
 
@@ -31,7 +30,7 @@ export function GameHUD({ isPointerLocked, isFullscreen = false }: GameHUDProps)
     const dx = selectedCube.position[0] - player.position[0];
     const dy = selectedCube.position[1] - player.position[1];
     const dz = selectedCube.position[2] - player.position[2];
-    return Math.sqrt(dx*dx + dy*dy + dz*dz) <= MINING_REACH;
+    return Math.sqrt(dx * dx + dy * dy + dz * dz) <= MINING_REACH;
   })() : false;
 
   useEffect(() => {
@@ -51,25 +50,27 @@ export function GameHUD({ isPointerLocked, isFullscreen = false }: GameHUDProps)
   if (!player) return null;
 
   return (
-    <div className="absolute inset-0 pointer-events-none">
-      {/* Leaderboard */}
-      {isPointerLocked && <Leaderboard />}
+    <div className="absolute inset-0 pointer-events-none font-sans">
+      {/* Leaderboard - Always visible */}
+      <Leaderboard />
+
       {/* Token counter and player count */}
       {isPointerLocked && (
         <div className="absolute top-4 left-4 flex flex-col gap-2">
-          <div className="glass-card rounded-lg px-4 py-3 flex items-center gap-3">
-            <Coins className="w-6 h-6 text-accent" />
+          {/* Tokens */}
+          <div className="mc-panel px-4 py-2 flex items-center gap-3 bg-[#C6C6C6] text-black">
+            <Coins className="w-5 h-5 text-yellow-600" />
             <div>
-              <span className="font-pixel text-accent text-xl">{player.tokens.toLocaleString()}</span>
-              <p className="text-xs text-muted-foreground">TOKENS</p>
+              <span className="font-bold text-lg">{player.tokens.toLocaleString()}</span>
+              <p className="text-[10px] font-bold text-[#555555]">TOKENS</p>
             </div>
           </div>
-          
+
           {/* Player count indicator */}
-          <div className="glass-card rounded-lg px-4 py-2 flex items-center gap-2">
-            <Users className="w-4 h-4 text-primary" />
-            <span className="font-pixel text-primary text-sm">{playerCount}</span>
-            <span className="text-xs text-muted-foreground">
+          <div className="mc-panel px-4 py-2 flex items-center gap-2 bg-[#C6C6C6] text-black">
+            <Users className="w-4 h-4 text-[#555555]" />
+            <span className="font-bold text-sm">{playerCount}</span>
+            <span className="text-[10px] text-[#555555] uppercase font-bold">
               {isConnected ? 'online' : 'connecting...'}
             </span>
           </div>
@@ -77,68 +78,27 @@ export function GameHUD({ isPointerLocked, isFullscreen = false }: GameHUDProps)
       )}
 
       {/* Mining HUD */}
-      {isPointerLocked && (
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2">
-          <div className="glass-card rounded-xl p-4 flex flex-col items-center gap-3 min-w-[300px]">
+      {isPointerLocked && isMining && (
+        <div className="absolute bottom-16 left-1/2 -translate-x-1/2">
+          <div className="mc-panel p-2 flex flex-col items-center gap-2 min-w-[200px] bg-[#C6C6C6]">
             {/* Mining progress */}
             {isMining && (
               <div className="w-full">
-                <div className="flex justify-between text-xs mb-2">
-                  <span className="text-primary font-pixel flex items-center gap-2">
-                    <Pickaxe className="w-4 h-4 animate-pulse" />
-                    MINING...
+                <div className="flex justify-between text-xs mb-1 font-bold">
+                  <span className="text-black flex items-center gap-1">
+                    <Pickaxe className="w-3 h-3 animate-pulse" />
+                    MINING
                   </span>
-                  <span className="font-pixel">{Math.floor(miningProgress)}%</span>
+                  <span>{Math.floor(miningProgress)}%</span>
                 </div>
-                <div className="h-4 bg-muted rounded-full overflow-hidden">
+                {/* Minecraft Style Progress Bar */}
+                <div className="h-4 bg-[#555555] border-2 border-white border-t-[#373737] border-l-[#373737] p-0.5">
                   <div
-                    className="h-full rounded-full transition-all duration-75"
-                    style={{
-                      width: `${miningProgress}%`,
-                      background: miningProgress >= 100 
-                        ? 'linear-gradient(90deg, #10b981, #22c55e)' 
-                        : 'linear-gradient(90deg, #06b6d4, #0891b2)',
-                      boxShadow: '0 0 15px currentColor',
-                    }}
+                    className="h-full bg-[#55FF55]"
+                    style={{ width: `${miningProgress}%` }}
                   />
                 </div>
               </div>
-            )}
-
-            {/* Selected block info */}
-            {selectedCube && !isMining ? (
-              <div className="flex items-center gap-3 text-sm">
-                <div 
-                  className="w-6 h-6 rounded"
-                  style={{
-                    backgroundColor: selectedCube.type === 'stone' ? '#6b7280' 
-                      : selectedCube.type === 'gold' ? '#f59e0b'
-                      : selectedCube.type === 'diamond' ? '#06b6d4'
-                      : selectedCube.type === 'emerald' ? '#10b981'
-                      : '#ef4444'
-                  }}
-                />
-                <div className="flex flex-col">
-                  <span className="capitalize font-medium">{selectedCube.type} Block</span>
-                  <span className="text-xs text-accent">
-                    +{TOKENS_BY_TYPE[selectedCube.type].toLocaleString()} tokens
-                  </span>
-                </div>
-                
-                {isInRange ? (
-                  <span className="text-neon-green font-pixel text-xs animate-pulse">
-                    Hold click to mine!
-                  </span>
-                ) : (
-                  <span className="text-destructive font-pixel text-xs">
-                    Too far! Get closer
-                  </span>
-                )}
-              </div>
-            ) : !isMining && (
-              <p className="text-sm text-muted-foreground">
-                Click a nearby block to select it
-              </p>
             )}
           </div>
         </div>

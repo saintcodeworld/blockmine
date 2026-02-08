@@ -3,11 +3,21 @@ import { useFrame } from '@react-three/fiber';
 import { Cloud, Clouds, Stars } from '@react-three/drei';
 import { Group, Color } from 'three';
 import { useDayNightCycle } from '@/hooks/useDayNightCycle';
+import { useGameStore } from '@/store/gameStore';
 
 // Beautiful sky with day/night cycle based on local time
 export function SkyVoid() {
   const cloudsRef = useRef<Group>(null);
   const timeOfDay = useDayNightCycle();
+  const worldBounds = useGameStore((state) => state.worldBounds);
+
+  // Calculate ground size based on bounds
+  const groundRadius = Math.max(
+    Math.abs(worldBounds.maxX),
+    Math.abs(worldBounds.minX),
+    Math.abs(worldBounds.maxZ),
+    Math.abs(worldBounds.minZ)
+  ) * 1.5;
 
   // Slowly rotate clouds for a dynamic feel
   useFrame((state) => {
@@ -20,12 +30,12 @@ export function SkyVoid() {
   const cloudPositions = useMemo(() => {
     const positions: Array<{ pos: [number, number, number]; scale: number; seed: number }> = [];
     const count = 25;
-    
+
     for (let i = 0; i < count; i++) {
       const angle = (i / count) * Math.PI * 2 + Math.random() * 0.5;
       const radius = 50 + Math.random() * 80;
       const height = 60 + Math.random() * 25;
-      
+
       positions.push({
         pos: [
           Math.cos(angle) * radius,
@@ -36,55 +46,71 @@ export function SkyVoid() {
         seed: Math.floor(Math.random() * 1000),
       });
     }
-    
+
     return positions;
   }, []);
 
   // Generate trees
   const trees = useMemo(() => {
     const treePositions: Array<{ pos: [number, number, number]; height: number; radius: number }> = [];
-    
+
     for (let i = 0; i < 40; i++) {
       const angle = Math.random() * Math.PI * 2;
-      const distance = 25 + Math.random() * 80;
+      const distance = 15 + Math.random() * (groundRadius - 20);
       const x = Math.cos(angle) * distance;
       const z = Math.sin(angle) * distance;
-      
+
+      // Check against world bounds
+      if (x < worldBounds.minX || x > worldBounds.maxX || z < worldBounds.minZ || z > worldBounds.maxZ) continue;
+
       // Avoid spawn area
       if (Math.abs(x) < 8 && Math.abs(z - 8) < 8) continue;
-      
+
+      // Avoid building area (Center 0, -16, Extent ~20)
+      // Building is roughly X: [-20, 20], Z: [-36, 4]
+      // We add a large buffer to ensure clear area
+      if (x > -26 && x < 26 && z > -42 && z < 8) continue;
+
+
       treePositions.push({
         pos: [x, 0, z],
         height: 4 + Math.random() * 6,
         radius: 2 + Math.random() * 2,
       });
     }
-    
+
     return treePositions;
-  }, []);
+  }, [worldBounds]);
 
   // Generate flowers
   const flowers = useMemo(() => {
     const flowerPositions: Array<{ pos: [number, number, number]; color: string }> = [];
     const colors = ['#ff6b6b', '#ffd93d', '#6bcb77', '#4d96ff', '#ff8fd8', '#ffffff'];
-    
+
     for (let i = 0; i < 80; i++) {
       const angle = Math.random() * Math.PI * 2;
-      const distance = 5 + Math.random() * 60;
+      const distance = 5 + Math.random() * (groundRadius - 10);
       const x = Math.cos(angle) * distance;
       const z = Math.sin(angle) * distance;
-      
+
+      // Check against world bounds
+      if (x < worldBounds.minX || x > worldBounds.maxX || z < worldBounds.minZ || z > worldBounds.maxZ) continue;
+
       // Avoid spawn area
       if (Math.abs(x) < 5 && Math.abs(z - 8) < 5) continue;
-      
+
+      // Avoid building area
+      if (x > -26 && x < 26 && z > -42 && z < 8) continue;
+
+
       flowerPositions.push({
         pos: [x, 0.15, z],
         color: colors[Math.floor(Math.random() * colors.length)],
       });
     }
-    
+
     return flowerPositions;
-  }, []);
+  }, [worldBounds]);
 
   // Cloud color based on time of day
   const cloudColor = useMemo(() => {
@@ -149,9 +175,9 @@ export function SkyVoid() {
       {timeOfDay.phase !== 'night' && (
         <mesh position={timeOfDay.sunPosition}>
           <sphereGeometry args={[12, 32, 32]} />
-          <meshBasicMaterial 
-            color={timeOfDay.phase === 'dawn' ? '#ffdd99' : timeOfDay.phase === 'dusk' ? '#ff6b4a' : '#fffde7'} 
-            transparent 
+          <meshBasicMaterial
+            color={timeOfDay.phase === 'dawn' ? '#ffdd99' : timeOfDay.phase === 'dusk' ? '#ff6b4a' : '#fffde7'}
+            transparent
             opacity={0.9}
           />
         </mesh>
@@ -207,9 +233,9 @@ export function SkyVoid() {
 
       {/* Beautiful grass ground */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, 0]} receiveShadow>
-        <circleGeometry args={[150, 64]} />
-        <meshStandardMaterial 
-          color={grassColor} 
+        <circleGeometry args={[groundRadius, 64]} />
+        <meshStandardMaterial
+          color={grassColor}
           roughness={0.95}
           metalness={0}
         />
@@ -217,9 +243,9 @@ export function SkyVoid() {
 
       {/* Darker grass ring for depth */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, 0]} receiveShadow>
-        <ringGeometry args={[100, 200, 64]} />
-        <meshStandardMaterial 
-          color={grassRingColor} 
+        <ringGeometry args={[groundRadius * 0.8, groundRadius * 1.5, 64]} />
+        <meshStandardMaterial
+          color={grassRingColor}
           roughness={1}
           metalness={0}
         />
@@ -236,16 +262,16 @@ export function SkyVoid() {
           {/* Leaves - layered for fullness */}
           <mesh position={[0, tree.height + tree.radius * 0.3, 0]} castShadow>
             <sphereGeometry args={[tree.radius, 8, 8]} />
-            <meshStandardMaterial 
-              color={timeOfDay.phase === 'night' ? '#0f3d1a' : '#228B22'} 
-              roughness={0.8} 
+            <meshStandardMaterial
+              color={timeOfDay.phase === 'night' ? '#0f3d1a' : '#228B22'}
+              roughness={0.8}
             />
           </mesh>
           <mesh position={[0, tree.height + tree.radius * 0.8, 0]} castShadow>
             <sphereGeometry args={[tree.radius * 0.7, 8, 8]} />
-            <meshStandardMaterial 
-              color={timeOfDay.phase === 'night' ? '#134d22' : '#2d8f2d'} 
-              roughness={0.8} 
+            <meshStandardMaterial
+              color={timeOfDay.phase === 'night' ? '#134d22' : '#2d8f2d'}
+              roughness={0.8}
             />
           </mesh>
         </group>
@@ -255,11 +281,11 @@ export function SkyVoid() {
       {flowers.map((flower, i) => (
         <mesh key={i} position={flower.pos} castShadow>
           <sphereGeometry args={[0.15, 6, 6]} />
-          <meshStandardMaterial 
-            color={flower.color} 
-            roughness={0.5} 
-            emissive={flower.color} 
-            emissiveIntensity={timeOfDay.phase === 'night' ? 0.3 : 0.1} 
+          <meshStandardMaterial
+            color={flower.color}
+            roughness={0.5}
+            emissive={flower.color}
+            emissiveIntensity={timeOfDay.phase === 'night' ? 0.3 : 0.1}
           />
         </mesh>
       ))}
@@ -279,7 +305,22 @@ export function SkyVoid() {
       </mesh>
 
       {/* Soft atmospheric fog for depth */}
-      <fog attach="fog" args={[timeOfDay.fogColor, 80, 300]} />
+      <FogController color={timeOfDay.fogColor} />
     </>
   );
+}
+
+function FogController({ color }: { color: string }) {
+  const renderDistance = useGameStore((state) => state.renderDistance);
+
+  const fogRange = useMemo(() => {
+    switch (renderDistance) {
+      case 'low': return [20, 80];
+      case 'medium': return [40, 150];
+      case 'high': return [80, 300];
+      default: return [40, 150];
+    }
+  }, [renderDistance]);
+
+  return <fog attach="fog" args={[color, fogRange[0], fogRange[1]]} />;
 }
