@@ -8,10 +8,10 @@ export interface RemotePlayer {
   username: string;
   position: [number, number, number];
   rotation: number;
-  velocity: [number, number, number]; // For prediction
+  velocity: [number, number, number];
   isMining: boolean;
   color: string;
-  lastUpdate: number; // Timestamp for interpolation
+  lastUpdate: number;
 }
 
 const PLAYER_COLORS = [
@@ -20,15 +20,17 @@ const PLAYER_COLORS = [
   '#84cc16', '#22d3ee', '#e879f9', '#facc15', '#fb923c',
 ];
 
-const UPDATE_INTERVAL = 33; // ~30fps for smoother sync
+const UPDATE_INTERVAL = 33;
+const RECONNECT_DELAY = 3000;
+const MAX_RECONNECT_ATTEMPTS = 5;
 
-// Global singleton to prevent duplicate channels
 let globalChannel: any = null;
 let globalPresenceKey: string | null = null;
 let isInitializing = false;
 let cleanupTimeout: ReturnType<typeof setTimeout> | null = null;
+let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
+let reconnectAttempts = 0;
 
-// Shared state that all hook instances can read
 let sharedRemotePlayers = new Map<string, RemotePlayer>();
 let sharedIsConnected = false;
 const stateListeners = new Set<() => void>();
@@ -37,112 +39,134 @@ function notifyStateChange() {
   stateListeners.forEach(fn => fn());
 }
 
+async function destroyChannel() {
+  if (reconnectTimeout) {
+    clearTimeout(reconnectTimeout);
+    reconnectTimeout = null;
+  }
+  if (cleanupTimeout) {
+    clearTimeout(cleanupTimeout);
+    cleanupTimeout = null;
+  }
+  if (globalChannel) {
+    try {
+      const { getSupabase } = await import('@/lib/supabase');
+      const supabase = getSupabase();
+      if (supabase) {
+        await supabase.removeChannel(globalChannel);
+      }
+    } catch {}
+    globalChannel = null;
+  }
+  globalPresenceKey = null;
+  isInitializing = false;
+  reconnectAttempts = 0;
+  sharedIsConnected = false;
+  sharedRemotePlayers = new Map();
+  notifyStateChange();
+}
+
 export function useMultiplayer() {
   const player = useGameStore((state) => state.player);
   const isMining = useGameStore((state) => state.isMining);
   const { user } = useAuth();
-  
+
   const [remotePlayers, setRemotePlayers] = useState<RemotePlayer[]>([]);
   const [isConnected, setIsConnected] = useState(false);
-  
+
   const lastUpdateTime = useRef(0);
   const lastMiningState = useRef(false);
   const lastPosition = useRef<[number, number, number] | null>(null);
   const pendingUpdate = useRef<{ position: [number, number, number]; rotation: number } | null>(null);
   const playerColorRef = useRef(PLAYER_COLORS[Math.floor(Math.random() * PLAYER_COLORS.length)]);
+  const stablePresenceKey = useRef<string | null>(null);
+
   const presenceKey = user?.id || player?.id || '';
 
-  // Subscribe to shared state changes
+  if (presenceKey && !stablePresenceKey.current) {
+    stablePresenceKey.current = presenceKey;
+  }
+
   useEffect(() => {
     const handleChange = () => {
       setRemotePlayers(Array.from(sharedRemotePlayers.values()));
       setIsConnected(sharedIsConnected);
     };
-    
+
     stateListeners.add(handleChange);
-    // Initial sync
     handleChange();
-    
+
     return () => {
       stateListeners.delete(handleChange);
     };
   }, []);
 
-  // Initialize channel (singleton)
   useEffect(() => {
-    if (!player || !presenceKey) return;
-    
-    // Clear any pending cleanup
+    const key = stablePresenceKey.current;
+    if (!player || !key) return;
+
     if (cleanupTimeout) {
       clearTimeout(cleanupTimeout);
       cleanupTimeout = null;
     }
-    
-    // Already initialized with same key or currently initializing
-    if ((globalChannel && globalPresenceKey === presenceKey) || isInitializing) {
+
+    if ((globalChannel && globalPresenceKey === key) || isInitializing) {
       return;
     }
 
     const initChannel = async () => {
       isInitializing = true;
-      
+      reconnectAttempts = 0;
+
       try {
         const { getSupabase } = await import('@/lib/supabase');
         const supabase = getSupabase();
-        
+
         if (!supabase) {
-          console.log('[Multiplayer] Backend not available');
           isInitializing = false;
           return;
         }
 
-        // Cleanup existing channel properly
         if (globalChannel) {
           try {
             await supabase.removeChannel(globalChannel);
-          } catch (e) {
-            // Ignore cleanup errors
-          }
+          } catch {}
           globalChannel = null;
         }
 
-        globalPresenceKey = presenceKey;
+        globalPresenceKey = key;
 
         const gameChannel = supabase.channel('game-world', {
           config: {
-            presence: { key: presenceKey },
+            presence: { key },
             broadcast: { self: false },
           },
         });
 
         globalChannel = gameChannel;
 
-        // Track known players to detect actual joins/leaves
         const knownPlayers = new Set<string>();
         let hasInitialized = false;
 
-        // Get current user ID to filter self across all events
         const currentUserId = user?.id;
+        const currentPlayerRef = useGameStore.getState().player;
 
         gameChannel
           .on('presence', { event: 'sync' }, () => {
             const presenceState = gameChannel.presenceState();
             const newPlayers = new Map<string, RemotePlayer>();
             const now = Date.now();
-            
-            Object.entries(presenceState).forEach(([key, presences]) => {
-              // Skip if this is our presence key
-              if (key === presenceKey || !presences?.length) return;
-              
+
+            Object.entries(presenceState).forEach(([pKey, presences]) => {
+              if (pKey === key || !presences?.length) return;
+
               const p = presences[0] as any;
-              
-              // Also filter by userId in case presence key differs
+
               if (currentUserId && p.userId === currentUserId) return;
-              
-              const existingPlayer = sharedRemotePlayers.get(key);
+
+              const existingPlayer = sharedRemotePlayers.get(pKey);
               const newPos: [number, number, number] = p.position || [0, 1.5, 0];
-              
-              // Calculate velocity from position delta for prediction
+
               let velocity: [number, number, number] = [0, 0, 0];
               if (existingPlayer && p.timestamp) {
                 const dt = (now - existingPlayer.lastUpdate) / 1000;
@@ -154,10 +178,10 @@ export function useMultiplayer() {
                   ];
                 }
               }
-              
-              newPlayers.set(key, {
-                odocument: key,
-                odocumentId: p.userId || key,
+
+              newPlayers.set(pKey, {
+                odocument: pKey,
+                odocumentId: p.userId || pKey,
                 username: p.username || 'Player',
                 position: newPos,
                 rotation: p.rotation || 0,
@@ -167,78 +191,89 @@ export function useMultiplayer() {
                 lastUpdate: now,
               });
             });
-            
+
             sharedRemotePlayers = newPlayers;
             hasInitialized = true;
             notifyStateChange();
           })
-          .on('presence', { event: 'join' }, ({ key, newPresences }) => {
-            if (key === presenceKey || !newPresences?.length) return;
-            
+          .on('presence', { event: 'join' }, ({ key: joinKey, newPresences }) => {
+            if (joinKey === key || !newPresences?.length) return;
+
             const p = newPresences[0] as any;
-            
-            // Also filter by userId in case presence key differs
+
             if (currentUserId && p.userId === currentUserId) return;
-            
-            // Skip if this is initial sync (player was already there)
-            if (!hasInitialized || knownPlayers.has(key)) {
-              knownPlayers.add(key);
+
+            if (!hasInitialized || knownPlayers.has(joinKey)) {
+              knownPlayers.add(joinKey);
               return;
             }
-            
-            const playerColor = p.color || PLAYER_COLORS[0];
-            const playerUsername = p.username || 'Player';
-            
-            knownPlayers.add(key);
-            
+
+            knownPlayers.add(joinKey);
+
             const updated = new Map(sharedRemotePlayers);
-            updated.set(key, {
-              odocument: key,
-              odocumentId: p.userId || key,
-              username: playerUsername,
+            updated.set(joinKey, {
+              odocument: joinKey,
+              odocumentId: p.userId || joinKey,
+              username: p.username || 'Player',
               position: p.position || [0, 1.5, 0],
               rotation: p.rotation || 0,
               velocity: [0, 0, 0],
               isMining: Boolean(p.isMining),
-              color: playerColor,
+              color: p.color || PLAYER_COLORS[0],
               lastUpdate: Date.now(),
             });
             sharedRemotePlayers = updated;
             notifyStateChange();
-            
           })
-          .on('presence', { event: 'leave' }, ({ key }) => {
-            // Always remove from known players and shared state
-            knownPlayers.delete(key);
-            
-            if (sharedRemotePlayers.has(key)) {
+          .on('presence', { event: 'leave' }, ({ key: leaveKey }) => {
+            knownPlayers.delete(leaveKey);
+
+            if (sharedRemotePlayers.has(leaveKey)) {
               const updated = new Map(sharedRemotePlayers);
-              updated.delete(key);
+              updated.delete(leaveKey);
               sharedRemotePlayers = updated;
               notifyStateChange();
             }
           })
           .subscribe(async (status) => {
             console.log(`[Multiplayer] Status: ${status}`);
-            
+
             if (status === 'SUBSCRIBED') {
               sharedIsConnected = true;
+              reconnectAttempts = 0;
               notifyStateChange();
-              
-              await gameChannel.track({
-                userId: user?.id || player.id,
-                username: player.username,
-                position: player.position,
-                rotation: player.rotation,
-                isMining: false,
-                color: playerColorRef.current,
-              });
+
+              const latestPlayer = useGameStore.getState().player;
+              if (latestPlayer) {
+                await gameChannel.track({
+                  userId: user?.id || latestPlayer.id,
+                  username: latestPlayer.username,
+                  position: latestPlayer.position,
+                  rotation: latestPlayer.rotation,
+                  isMining: false,
+                  color: playerColorRef.current,
+                }).catch(() => {});
+              }
             } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
               sharedIsConnected = false;
               notifyStateChange();
+
+              if (gameChannel === globalChannel && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+                reconnectAttempts++;
+                const delay = RECONNECT_DELAY * reconnectAttempts;
+                console.log(`[Multiplayer] Reconnecting in ${delay}ms (attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})`);
+                reconnectTimeout = setTimeout(() => {
+                  if (globalChannel === gameChannel) {
+                    globalChannel = null;
+                    globalPresenceKey = null;
+                    isInitializing = false;
+                    initChannel();
+                  }
+                }, delay);
+              }
             }
           });
-          
+
       } catch (error) {
         console.log('[Multiplayer] Error:', error);
       } finally {
@@ -247,38 +282,20 @@ export function useMultiplayer() {
     };
 
     initChannel();
-    
-    // Cleanup on unmount with delay to prevent rapid reconnections
-    return () => {
-      cleanupTimeout = setTimeout(async () => {
-        if (globalChannel) {
-          try {
-            const { getSupabase } = await import('@/lib/supabase');
-            const supabase = getSupabase();
-            if (supabase) {
-              await supabase.removeChannel(globalChannel);
-            }
-          } catch (e) {
-            // Ignore
-          }
-          globalChannel = null;
-          globalPresenceKey = null;
-          sharedIsConnected = false;
-          sharedRemotePlayers = new Map();
-          notifyStateChange();
-        }
-      }, 1000); // 1 second delay before cleanup
-    };
-  }, [presenceKey, player?.id, player?.username, user?.id]);
 
-  // Broadcast mining state changes immediately
+    return () => {
+      cleanupTimeout = setTimeout(() => {
+        destroyChannel();
+      }, 2000);
+    };
+  }, [stablePresenceKey.current, !!player]);
+
   useEffect(() => {
     if (!globalChannel || !player || !sharedIsConnected) return;
-    
-    // Only send update if mining state actually changed
+
     if (lastMiningState.current !== isMining) {
       lastMiningState.current = isMining;
-      
+
       globalChannel.track({
         userId: user?.id || player.id,
         username: player.username,
@@ -292,12 +309,11 @@ export function useMultiplayer() {
 
   const updatePosition = useCallback(
     async (position: [number, number, number], rotation: number) => {
-      if (!globalChannel || !player) return;
+      if (!globalChannel || !player || !sharedIsConnected) return;
 
       const now = Date.now();
       pendingUpdate.current = { position, rotation };
 
-      // Calculate velocity for remote interpolation
       let velocity: [number, number, number] = [0, 0, 0];
       if (lastPosition.current && lastUpdateTime.current > 0) {
         const dt = (now - lastUpdateTime.current) / 1000;
@@ -313,7 +329,7 @@ export function useMultiplayer() {
       if (now - lastUpdateTime.current >= UPDATE_INTERVAL) {
         lastUpdateTime.current = now;
         lastPosition.current = [...position];
-        
+
         try {
           await globalChannel.track({
             userId: user?.id || player.id,
@@ -325,15 +341,12 @@ export function useMultiplayer() {
             isMining,
             color: playerColorRef.current,
           });
-        } catch {
-          // Ignore errors
-        }
+        } catch {}
       }
     },
     [player, isMining, user?.id]
   );
 
-  // Periodic sync
   useEffect(() => {
     if (!isConnected || !player) return;
 

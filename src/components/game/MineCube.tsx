@@ -114,7 +114,7 @@ export function MineCube({ cube, isSelected, onSelect, playerPosition }: MineCub
         castShadow
         receiveShadow
       >
-        <boxGeometry args={[1.8, 1.8, 1.8]} />
+        <boxGeometry args={[2.0, 2.0, 2.0]} />
         <meshStandardMaterial
           map={texture}
           transparent={!isInRange}
@@ -127,7 +127,7 @@ export function MineCube({ cube, isSelected, onSelect, playerPosition }: MineCub
       {/* Selection outline - only show if in range */}
       {isSelected && !isBeingMined && isInRange && (
         <mesh scale={1.02}>
-          <boxGeometry args={[1.8, 1.8, 1.8]} />
+          <boxGeometry args={[2.0, 2.0, 2.0]} />
           <meshBasicMaterial color="#ffffff" wireframe />
         </mesh>
       )}
@@ -135,7 +135,7 @@ export function MineCube({ cube, isSelected, onSelect, playerPosition }: MineCub
       {/* Out of range indicator */}
       {isSelected && !isInRange && (
         <mesh scale={1.02}>
-          <boxGeometry args={[1.8, 1.8, 1.8]} />
+          <boxGeometry args={[2.0, 2.0, 2.0]} />
           <meshBasicMaterial color="#ff0000" wireframe opacity={0.5} transparent />
         </mesh>
       )}
@@ -159,7 +159,7 @@ export function MineCube({ cube, isSelected, onSelect, playerPosition }: MineCub
       {/* Crack overlay when being mined */}
       {isBeingMined && miningProgress > 0.2 && (
         <mesh scale={1.01}>
-          <boxGeometry args={[1.8, 1.8, 1.8]} />
+          <boxGeometry args={[2.0, 2.0, 2.0]} />
           <meshBasicMaterial
             color="#000000"
             wireframe

@@ -5,15 +5,18 @@ import { useGameStore } from '@/store/gameStore';
 import { useGameAudio } from '@/hooks/useGameAudio';
 
 const MINING_REACH = 5;
-const MINING_HIT_INTERVAL = 200; // Play hit sound every 200ms while mining
+const MINING_HIT_INTERVAL = 200;
+const MINING_GRACE_FRAMES = 6;
+const SELECTION_GRACE_FRAMES = 3;
 
-// Component to handle crosshair-based mining with raycasting
 export function CrosshairMining() {
   const { camera, scene } = useThree();
   const raycaster = useRef(new Raycaster());
   const isMouseDown = useRef(false);
   const lastMiningHitTime = useRef(0);
   const prevCubeCount = useRef(0);
+  const missFrames = useRef(0);
+  const lastHitCubeId = useRef<string | null>(null);
 
   const cubes = useGameStore((state) => state.cubes);
   const startMining = useGameStore((state) => state.startMining);
@@ -140,9 +143,10 @@ export function CrosshairMining() {
     }
 
     if (hitCubeId) {
+      missFrames.current = 0;
+      lastHitCubeId.current = hitCubeId;
+
       if (miningCubeId !== hitCubeId) {
-        // Only set if different to avoid spamming state updates
-        // But we need to ensure selection is current
         setSelectedCube(hitCubeId);
       }
 
@@ -152,8 +156,15 @@ export function CrosshairMining() {
         }
       }
     } else {
-      setSelectedCube(null);
-      if (isMining) stopMining();
+      missFrames.current++;
+
+      const gracePeriod = isMining ? MINING_GRACE_FRAMES : SELECTION_GRACE_FRAMES;
+
+      if (missFrames.current > gracePeriod) {
+        lastHitCubeId.current = null;
+        setSelectedCube(null);
+        if (isMining) stopMining();
+      }
     }
 
     if (isMining && miningCubeId) {
