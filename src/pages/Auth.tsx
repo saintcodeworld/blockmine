@@ -5,11 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { Pickaxe, Gem, User, Mail, Lock, Eye, EyeOff } from 'lucide-react';
+import { Pickaxe, Gem, User, Lock, Eye, EyeOff } from 'lucide-react';
 
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
-  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -44,10 +43,20 @@ export default function Auth() {
     const supabase = getSupabase();
     setLoading(true);
 
+    // Sanitize username to create a consistent email
+    const cleanUsername = username.trim().toLowerCase().replace(/\s+/g, '');
+    const fakeEmail = `${cleanUsername}@tokenquest.com`;
+
     try {
       if (isLogin) {
+        if (!username.trim()) {
+          toast.error('Please enter your username');
+          setLoading(false);
+          return;
+        }
+
         const { error } = await supabase.auth.signInWithPassword({
-          email,
+          email: fakeEmail,
           password,
         });
         if (error) throw error;
@@ -70,9 +79,10 @@ export default function Auth() {
         }
 
         const { error } = await supabase.auth.signUp({
-          email,
+          email: fakeEmail,
           password,
           options: {
+            // Redirect to root
             emailRedirectTo: `${window.location.origin}/`,
             data: {
               username: username.trim(),
@@ -84,10 +94,10 @@ export default function Auth() {
       }
     } catch (error: any) {
       console.error('Auth error:', error);
-      if (error.message.includes('User already registered')) {
-        toast.error('This email is already registered. Please login instead.');
+      if (error.message.includes('User already registered') || error.message.includes('unique constraint')) {
+        toast.error('This username is already taken. Please try another.');
       } else if (error.message.includes('Invalid login credentials')) {
-        toast.error('Invalid email or password');
+        toast.error('Invalid username or password');
       } else {
         toast.error(error.message || 'Authentication failed');
       }
@@ -120,13 +130,12 @@ export default function Auth() {
 
         {/* Auth card */}
         <div className="bg-[#C6C6C6] border-4 border-white border-b-[#555555] border-r-[#555555] p-6 shadow-2xl">
-          {/* Tabs */}
           <div className="flex mb-6 gap-2">
             <button
               onClick={() => setIsLogin(true)}
               className={`flex-1 py-2 font-bold transition-all border-2 ${isLogin
-                  ? 'bg-[#8B8B8B] text-white border-[#555555] border-b-white border-r-white inset-shadow'
-                  : 'bg-[#C6C6C6] text-[#555555] border-white border-b-[#555555] border-r-[#555555] hover:bg-[#D6D6D6]'
+                ? 'bg-[#8B8B8B] text-white border-[#555555] border-b-white border-r-white inset-shadow'
+                : 'bg-[#C6C6C6] text-[#555555] border-white border-b-[#555555] border-r-[#555555] hover:bg-[#D6D6D6]'
                 }`}
             >
               Login
@@ -134,8 +143,8 @@ export default function Auth() {
             <button
               onClick={() => setIsLogin(false)}
               className={`flex-1 py-2 font-bold transition-all border-2 ${!isLogin
-                  ? 'bg-[#8B8B8B] text-white border-[#555555] border-b-white border-r-white inset-shadow'
-                  : 'bg-[#C6C6C6] text-[#555555] border-white border-b-[#555555] border-r-[#555555] hover:bg-[#D6D6D6]'
+                ? 'bg-[#8B8B8B] text-white border-[#555555] border-b-white border-r-white inset-shadow'
+                : 'bg-[#C6C6C6] text-[#555555] border-white border-b-[#555555] border-r-[#555555] hover:bg-[#D6D6D6]'
                 }`}
             >
               Sign Up
@@ -143,40 +152,19 @@ export default function Auth() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Username (signup only) */}
-            {!isLogin && (
-              <div className="space-y-1">
-                <Label htmlFor="username" className="text-[#101010] font-bold">
-                  Username
-                </Label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#555555]" />
-                  <Input
-                    id="username"
-                    type="text"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    placeholder="CryptoMiner99"
-                    className="pl-10 bg-white border-2 border-[#555555] border-b-white border-r-white text-black placeholder:text-gray-400 rounded-none focus:ring-0"
-                    required={!isLogin}
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Email */}
+            {/* Username */}
             <div className="space-y-1">
-              <Label htmlFor="email" className="text-[#101010] font-bold">
-                Email
+              <Label htmlFor="username" className="text-[#101010] font-bold">
+                Username
               </Label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#555555]" />
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#555555]" />
                 <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="miner@crypto.com"
+                  id="username"
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="CryptoMiner99"
                   className="pl-10 bg-white border-2 border-[#555555] border-b-white border-r-white text-black placeholder:text-gray-400 rounded-none focus:ring-0"
                   required
                 />

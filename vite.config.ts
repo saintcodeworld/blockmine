@@ -1,7 +1,7 @@
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
-import { componentTagger } from "lovable-tagger";
+
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
@@ -10,15 +10,15 @@ export default defineConfig(({ mode }) => {
   const supabaseKey = env.VITE_SUPABASE_PUBLISHABLE_KEY || "";
 
   return {
-  server: {
-    host: "::",
-    port: 8080,
-    allowedHosts: ["robinadminserver.xyz"],
-    hmr: {
-      overlay: false,
-    },
-    proxy: supabaseUrl && supabaseKey
-      ? {
+    server: {
+      host: "::",
+      port: 8080,
+      allowedHosts: ["robinadminserver.xyz"],
+      hmr: {
+        overlay: false,
+      },
+      proxy: supabaseUrl && supabaseKey
+        ? {
           "/api/transfer-tokens": {
             target: supabaseUrl,
             changeOrigin: true,
@@ -34,13 +34,13 @@ export default defineConfig(({ mode }) => {
             },
           },
         }
-      : undefined,
-  },
-  plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
-  resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
+        : undefined,
     },
-  },
-};
+    plugins: [react()].filter(Boolean),
+    resolve: {
+      alias: {
+        "@": path.resolve(__dirname, "./src"),
+      },
+    },
+  };
 });
