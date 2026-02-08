@@ -51,3 +51,6 @@ CREATE TRIGGER update_player_progress_updated_at
 BEFORE UPDATE ON public.player_progress
 FOR EACH ROW
 EXECUTE FUNCTION public.update_player_progress_updated_at();
+
+-- 7. Enable Realtime for player_progress
+alter publication supabase_realtime add table player_progress;

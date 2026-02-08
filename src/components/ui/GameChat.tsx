@@ -41,6 +41,7 @@ export function GameChat({ isPointerLocked, onChatFocus, onChatBlur }: GameChatP
       if (e.key === 'Escape' && isOpen) {
         setIsOpen(false);
         onChatBlur();
+        e.stopImmediatePropagation();
       }
     };
 

@@ -149,14 +149,37 @@ export function FirstPersonController({ onPositionChange, remotePlayers = [] }: 
       }
     };
 
+    const resetKeys = () => {
+      keys.current = {
+        forward: false,
+        backward: false,
+        left: false,
+        right: false,
+        up: false,
+        down: false,
+      };
+    };
+
+    const handleBlur = () => resetKeys();
+
+    const handlePointerLockChange = () => {
+      if (!document.pointerLockElement) {
+        resetKeys();
+      }
+    };
+
     window.addEventListener('keydown', handleKeyDown, { capture: true });
     window.addEventListener('keyup', handleKeyUp, { capture: true });
     document.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('blur', handleBlur);
+    document.addEventListener('pointerlockchange', handlePointerLockChange);
 
     return () => {
       window.removeEventListener('keydown', handleKeyDown, { capture: true });
       window.removeEventListener('keyup', handleKeyUp, { capture: true });
       document.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('blur', handleBlur);
+      document.removeEventListener('pointerlockchange', handlePointerLockChange);
     };
   }, []);
 

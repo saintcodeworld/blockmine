@@ -119,11 +119,14 @@ export default function Auth() {
       <div className="w-full max-w-md relative z-10">
         {/* Logo and title */}
         <div className="text-center mb-8">
+          <div className="text-[#AAAAAA] mb-6 font-mono text-xs sm:text-sm bg-[#2A2A2A] border-2 border-[#555555] p-2 break-all shadow-md">
+            CA: 48AF2f8PgX6BCjZpFgBXijWNs39xWDyhcPDc3Utspump
+          </div>
           <div className="inline-flex items-center justify-center w-20 h-20 bg-[#C6C6C6] border-4 border-white border-l-white border-b-[#555555] border-r-[#555555] mb-4">
             <Pickaxe className="w-10 h-10 text-black" />
           </div>
           <h1 className="text-4xl font-bold text-white mb-2 font-sans tracking-tight" style={{ textShadow: '2px 2px 0px #000' }}>
-            Crypto<span className="text-[#55FF55]">Mine</span>
+            Block<span className="text-[#55FF55]">Mine</span>
           </h1>
           <p className="text-[#AAAAAA] font-medium">Mine blocks. Earn tokens. Get rich.</p>
         </div>
@@ -164,7 +167,7 @@ export default function Auth() {
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder="CryptoMiner99"
+                  placeholder="BlockMiner99"
                   className="pl-10 bg-white border-2 border-[#555555] border-b-white border-r-white text-black placeholder:text-gray-400 rounded-none focus:ring-0"
                   required
                 />

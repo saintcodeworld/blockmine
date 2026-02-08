@@ -26,9 +26,16 @@ export async function transferTokensToUser(
     if (!res.ok) {
       return { error: data?.error ?? `Request failed: ${res.status}` };
     }
+
+    // Validate response has actual data
     if (data?.error) {
       return { error: data.error };
     }
+
+    if (!data || !data.signature) {
+      return { error: "Invalid response from server (missing signature)" };
+    }
+
     return data;
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);

@@ -47,7 +47,7 @@ export function RegisterScreen() {
             <Pickaxe className="w-10 h-10 text-primary" />
           </div>
           <h1 className="font-pixel text-3xl md:text-4xl text-primary neon-text mb-3">
-            CRYPTO MINE
+            BLOCK MINE
           </h1>
           <p className="text-muted-foreground text-lg">
             Mine blocks. Earn tokens. Build fortune.
@@ -102,14 +102,14 @@ export function RegisterScreen() {
           <div className="grid grid-cols-5 gap-2 text-center">
             {Object.entries(TOKENS_BY_TYPE).map(([type, tokens]) => (
               <div key={type} className="flex flex-col items-center gap-1">
-                <div 
+                <div
                   className="w-6 h-6 rounded"
                   style={{
-                    backgroundColor: type === 'stone' ? '#6b7280' 
+                    backgroundColor: type === 'stone' ? '#6b7280'
                       : type === 'gold' ? '#f59e0b'
-                      : type === 'diamond' ? '#06b6d4'
-                      : type === 'emerald' ? '#10b981'
-                      : '#ef4444'
+                        : type === 'diamond' ? '#06b6d4'
+                          : type === 'emerald' ? '#10b981'
+                            : '#ef4444'
                   }}
                 />
                 <span className="text-xs text-muted-foreground capitalize">{type}</span>

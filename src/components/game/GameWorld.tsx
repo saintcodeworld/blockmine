@@ -48,12 +48,6 @@ export function GameWorld() {
       const isLocked = !!document.pointerLockElement;
       console.log('Pointer lock changed:', isLocked);
       setIsPointerLocked(isLocked);
-
-      // If lock is lost (user pressed ESC), open settings menu immediately
-      // This prevents the "Click to Play" screen from showing up first
-      if (!isLocked) {
-        setIsSettingsOpen(true);
-      }
     };
 
     const handlePointerLockError = () => {

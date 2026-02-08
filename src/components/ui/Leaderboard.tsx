@@ -4,7 +4,7 @@ import { Button } from './button';
 import { ScrollArea } from './scroll-area';
 
 export function Leaderboard() {
-  const { leaderboard, loading, refresh } = useLeaderboard();
+  const { leaderboard, loading, refresh, error } = useLeaderboard();
 
   return (
     <div className="absolute top-4 right-4 z-40 pointer-events-auto font-sans">
@@ -31,7 +31,11 @@ export function Leaderboard() {
         {/* Leaderboard list */}
         <ScrollArea className="h-64 bg-[#C6C6C6]">
           <div className="p-2 space-y-1">
-            {loading && leaderboard.length === 0 ? (
+            {error ? (
+              <div className="text-center py-4 text-red-600 text-xs font-bold px-2">
+                {error}
+              </div>
+            ) : loading && leaderboard.length === 0 ? (
               <div className="text-center py-4 text-[#555555] text-xs font-bold">
                 Loading...
               </div>
@@ -55,7 +59,7 @@ export function Leaderboard() {
                     <span className="text-xs font-bold text-black">{entry.username}</span>
                   </div>
                   <div className="flex items-center gap-1 text-xs text-[#555555]">
-                    <span className="font-mono font-bold">{entry.total_mined.toLocaleString()}</span>
+                    <span className="font-mono font-bold">{entry.tokens.toLocaleString()}</span>
                   </div>
                 </div>
               ))
